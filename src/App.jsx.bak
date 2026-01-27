@@ -12,7 +12,6 @@ function transformPricingData(cloudData) {
   // Transformer AWS port_costs en objet indexé par bandwidth
   const awsPortCosts = {};
   const awsPortCostsJapan = {};
-  
   aws.connectivity.direct_connect.port_costs.pricing.forEach(item => {
     awsPortCosts[item.bandwidth] = item.cost_per_hour_default;
     if (item.regional_variations && item.regional_variations['ap-northeast-1']) {
@@ -22,45 +21,45 @@ function transformPricingData(cloudData) {
     }
   });
   
-  // AWS private egress : déjà un objet by_region
-  const awsPrivateEgress = aws.connectivity.direct_connect.private_egress.by_region;
+  // Transformer AWS private egress en objet indexé par région
+  const awsPrivateEgress = {};
+  aws.connectivity.direct_connect.private_egress.regional_pricing.forEach(region => {
+    awsPrivateEgress[region.region_code] = region.rate_per_gib;
+  });
   
-  // Transformer Azure port costs : array → objet [bandwidth][zone]
+  // Transformer Azure port costs en objet imbriqué [bandwidth][zone]
   const azurePortCosts = {};
   azure.connectivity.expressroute.port_costs.tiers.standard.metered.forEach(item => {
-    azurePortCosts[item.bandwidth] = item.costs_by_zone;
+    if (!azurePortCosts[item.bandwidth]) {
+      azurePortCosts[item.bandwidth] = {};
+    }
+    azurePortCosts[item.bandwidth][item.zone] = item.cost_per_month;
   });
   
-  // Azure private egress : déjà un objet by_zone
-  const azurePrivateEgress = azure.connectivity.expressroute.private_egress.by_zone;
+  // Transformer Azure private egress en objet indexé par zone
+  const azurePrivateEgress = {};
+  azure.connectivity.expressroute.private_egress.zones.forEach(zone => {
+    azurePrivateEgress[zone.zone] = zone.rate_per_gb;
+  });
   
-  // Azure regions to zones : extraire depuis egress_internet
+  // Azure regions to zones
   const azureRegionsToZones = {};
-  const azureEgressRegions = azure.egress_internet.peering_modes.internet.regions;
-  
-  Object.keys(azureEgressRegions).forEach(regionCode => {
-    const region = azureEgressRegions[regionCode];
-    azureRegionsToZones[regionCode] = { 
-      zone: region.zone,
-      region_name: region.region_name 
-    };
+  azure.connectivity.expressroute.regions.forEach(region => {
+    azureRegionsToZones[region.region_code] = { zone: region.zone };
   });
-  
-  // AWS egress regions
-  const awsEgressRegions = aws.egress_internet.regions;
   
   return {
     AWS_PORT_COSTS: awsPortCosts,
     AWS_PORT_COSTS_JAPAN: awsPortCostsJapan,
     AWS_PRIVATE_EGRESS: awsPrivateEgress,
-    AWS_EGRESS_REGIONS: awsEgressRegions,
+    AWS_EGRESS_REGIONS: aws.egress_internet.regions,
     BANDWIDTHS_AWS: aws.connectivity.direct_connect.available_bandwidths,
     
     AZURE_PORT_COSTS: azurePortCosts,
     AZURE_PRIVATE_EGRESS: azurePrivateEgress,
     AZURE_REGIONS_TO_ZONES: azureRegionsToZones,
-    AZURE_EGRESS_REGIONS: azureEgressRegions,
-    AZURE_ERGW_CONFIG: azure.connectivity.expressroute.gateway,
+    AZURE_EGRESS_REGIONS: azure.egress_internet.regions,
+    AZURE_ERGW_CONFIG: azure.connectivity.expressroute.ergw,
     BANDWIDTHS_AZURE: azure.connectivity.expressroute.available_bandwidths
   };
 }
