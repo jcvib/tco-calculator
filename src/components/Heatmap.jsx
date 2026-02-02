@@ -154,7 +154,54 @@ export default function Heatmap({
                       color: textColor,
                       opacity: isOverThreshold ? 0.5 : 1
                     }}
-                    onClick={() => setSelectedCell({ ...cell, bandwidth: row.bandwidth, volume: vol })}
+                    onClick={() => setSelectedCell({
+                      // Infos de base
+                      bandwidth: row.bandwidth,
+                      totalVolume: vol,
+                      volumeTiB: cell.volumeTiB,
+                      volumeGiB: cell.volumeGiB,
+                      
+                      // Egress Internet
+                      totalEgress: cell.egressCost,
+                      internetEgressTiers: cell.egressCostData?.tiers?.map(t => ({
+                        label: `${t.min.toFixed(0)}-${t.max === Infinity ? '∞' : t.max.toFixed(0)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
+                        cost: t.cost
+                      })) || [],
+                      regionName: selectedRegion,
+                      
+                      // Connectivité Privée (mapper depuis privateCost)
+                      totalPrivate: cell.privateCost?.total || 0,
+                      obCost: cell.privateCost?.obCost || 0,
+                      obReservedBW: `${cell.privateCost?.obReservedBW || 0} USD`,
+                      obUsage: `${cell.volumeTiB} TiB`,
+                      obReservedBWCost: cell.privateCost?.obReservedBW || 0,
+                      obUsageCost: cell.privateCost?.obUsageCost || 0,
+                      obHours: cell.privateCost?.obHours || 730,
+                      obCountry: selectedCountry,
+                      
+                      cspPortCost: cell.privateCost?.cspPortCost || 0,
+                      cspPortRate: cell.privateCost?.portCostPerHour || 0,
+                      cspHoursPerMonth: cell.privateCost?.monthlyHours || 730,
+                      cspCircuitCount: cell.privateCost?.numCircuits || 2,
+                      
+                      erGwCost: cell.privateCost?.erGwCost || 0,
+                      erGwScaleUnits: cell.privateCost?.erGwScaleUnits || 0,
+                      erGwCostPerUnit: cell.privateCost?.erGwCostPerHour || 0,
+                      
+                      privateEgressCost: cell.privateCost?.privateEgressCost || 0,
+                      privateEgressRate: cell.privateCost?.privateEgressRate || 0,
+                      privateEgressVolume: `${(cell.privateCost?.volumeForEgress || 0).toFixed(2)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
+                      
+                      // Économies
+                      savingsAmount: cell.savings,
+                      savingsPercent: cell.savingsPercent,
+                      
+                      // Link Load
+                      linkLoadPercent: cell.linkLoad?.loadPercent || 0,
+                      volumeDemanded: `${cell.volumeTiB} TiB`,
+                      capacityMonthly: `${cell.linkLoad?.capacityTiB?.toFixed(2) || 0} TiB`,
+                      chargeTheoric: `${cell.linkLoad?.loadPercent?.toFixed(1) || 0}%`
+                    })}
                     title={`Cliquer pour voir les détails | Charge: ${cell.linkLoad.loadPercent.toFixed(0)}%`}
                   >
                     <div className="text-lg font-bold">
