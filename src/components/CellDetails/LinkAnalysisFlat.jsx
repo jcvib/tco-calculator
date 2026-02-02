@@ -1,0 +1,66 @@
+export default function LinkAnalysisFlat({ selectedCell, capacityThreshold }) {
+  const {
+    bandwidth = 'N/A',
+    linkLoadPercent = 0,
+    volumeDemanded = 'N/A',
+    capacityMonthly = 'N/A',
+    chargeTheoric = 'N/A'
+  } = selectedCell || {};
+
+  const isComfortable = linkLoadPercent <= capacityThreshold;
+  const statusColor = isComfortable ? 'text-green-600' : 'text-amber-600';
+  const barColor = isComfortable ? 'bg-green-500' : 'bg-amber-500';
+  const bgColor = isComfortable ? 'bg-green-50' : 'bg-amber-50';
+  const borderColor = isComfortable ? 'border-green-200' : 'border-amber-200';
+
+  return (
+    <div className={`${bgColor} ${borderColor} border rounded-lg p-4`}>
+      <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+        📊 Analyse de Capacité du Lien
+      </h3>
+
+      <div className="space-y-3 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-600">Bande passante sélectionnée:</span>
+          <span className="font-semibold">{bandwidth}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Capacité théorique mensuelle:</span>
+          <span className="font-semibold">{capacityMonthly}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Volume de données demandé:</span>
+          <span className="font-semibold">{volumeDemanded}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Charge théorique (débit constant):</span>
+          <span className="font-semibold">{chargeTheoric}</span>
+        </div>
+
+        <div className="pt-3 border-t border-gray-300">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-gray-700 font-medium">Charge du lien:</span>
+            <span className={`font-bold text-lg ${statusColor}`}>
+              {(linkLoadPercent || 0).toFixed(1)}%
+            </span>
+          </div>
+          
+          <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+            <div 
+              className={`${barColor} h-4 rounded-full transition-all duration-300`}
+              style={{ width: `${Math.min(linkLoadPercent || 0, 100)}%` }}
+            ></div>
+          </div>
+
+          <div className="mt-2 text-xs text-gray-600 flex items-center gap-2">
+            {isComfortable ? (
+              <span className="text-green-600">✅ Marge confortable pour absorber les pics</span>
+            ) : (
+              <span className="text-amber-600">⚠️ Ajuster la bande passante pour les pics</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

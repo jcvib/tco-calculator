@@ -23,11 +23,17 @@ export function parseBandwidth(bw) {
 }
 
 export function formatCurrency(amount) {
-  return `$${amount.toFixed(2)}`;
+  if (amount === undefined || amount === null || isNaN(amount)) {
+    return '$0.00';
+  }
+  return `$${Number(amount).toFixed(2)}`;
 }
 
 export function formatPercentage(value) {
-  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+  if (value === undefined || value === null || isNaN(value)) {
+    return '0.0%';
+  }
+  return `${value > 0 ? '+' : ''}${Number(value).toFixed(1)}%`;
 }
 
 export function getVolumeLabel(vol, unit, csp) {

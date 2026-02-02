@@ -1,0 +1,126 @@
+import { formatCurrency } from '../../utils/formatters';
+
+export default function ChartsFlat({ selectedCell, selectedCSP }) {
+  const { 
+    totalEgress = 0, 
+    totalPrivate = 0, 
+    savingsAmount = 0, 
+    savingsPercent = 0 
+  } = selectedCell || {};
+
+  // Calculer les composants du coût privé avec valeurs par défaut
+  const obCost = selectedCell?.obCost || 0;
+  const cspPortCost = selectedCell?.cspPortCost || 0;
+  const erGwCost = selectedCell?.erGwCost || 0;
+  const privateEgressCost = selectedCell?.privateEgressCost || 0;
+
+  // Calculer les pourcentages pour les barres de progression
+  const totalForBars = obCost + cspPortCost + erGwCost + privateEgressCost;
+  const obPercent = (obCost / totalForBars) * 100;
+  const portPercent = (cspPortCost / totalForBars) * 100;
+  const erGwPercent = (erGwCost / totalForBars) * 100;
+  const egressPercent = (privateEgressCost / totalForBars) * 100;
+
+  return (
+    <div className="space-y-6">
+      {/* Décomposition avec barres de progression */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          📊 Décomposition des Coûts
+        </h3>
+
+        {/* Egress Internet */}
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-gray-700">Egress Internet {selectedCSP}</span>
+            <span className="text-sm font-semibold text-blue-600">{formatCurrency(totalEgress)}</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-3">
+            <div className="bg-blue-500 h-3 rounded-full" style={{ width: '100%' }}></div>
+          </div>
+        </div>
+
+        {/* Connectivité Privée (Total) */}
+        <div className="mb-2">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm text-gray-700">Connectivité Privée (Total)</span>
+            <span className="text-sm font-semibold text-orange-600">{formatCurrency(totalPrivate)}</span>
+          </div>
+          <div className="w-full bg-gray-100 rounded-full h-3 relative overflow-hidden flex">
+            <div 
+              className="bg-orange-500 h-3" 
+              style={{ width: `${obPercent}%` }}
+              title={`OB ODCC: ${formatCurrency(obCost)}`}
+            ></div>
+            <div 
+              className="bg-blue-400 h-3" 
+              style={{ width: `${portPercent}%` }}
+              title={`${selectedCSP} Port: ${formatCurrency(cspPortCost)}`}
+            ></div>
+            {erGwPercent > 0 && (
+              <div 
+                className="bg-purple-400 h-3" 
+                style={{ width: `${erGwPercent}%` }}
+                title={`ErGw: ${formatCurrency(erGwCost)}`}
+              ></div>
+            )}
+            <div 
+              className="bg-green-500 h-3" 
+              style={{ width: `${egressPercent}%` }}
+              title={`Private Egress: ${formatCurrency(privateEgressCost)}`}
+            ></div>
+          </div>
+        </div>
+
+        {/* Légende des composants */}
+        <div className="flex flex-wrap gap-4 mt-3 text-xs text-gray-600">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-orange-500 rounded"></div>
+            <span>OB ODCC: {formatCurrency(obCost)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-blue-400 rounded"></div>
+            <span>{selectedCSP} Port: {formatCurrency(cspPortCost)}</span>
+          </div>
+          {erGwPercent > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-purple-400 rounded"></div>
+              <span>ErGw: {formatCurrency(erGwCost)}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-500 rounded"></div>
+            <span>Egress: {formatCurrency(privateEgressCost)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Comparaison Finale */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <h3 className="text-base font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          📈 Comparaison Finale
+        </h3>
+
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Egress Internet {selectedCSP}</div>
+            <div className="text-xl font-bold text-gray-800">{formatCurrency(totalEgress)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Connectivité Privée</div>
+            <div className="text-xl font-bold text-orange-600">{formatCurrency(totalPrivate)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-gray-500 mb-1">Économies OB</div>
+            <div className={`text-xl font-bold ${savingsAmount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {savingsAmount > 0 ? '+' : ''}{formatCurrency(Math.abs(savingsAmount))}
+            </div>
+            <div className={`text-sm ${savingsAmount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              ({savingsPercent > 0 ? '+' : ''}{savingsPercent.toFixed(2)}%)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -48,8 +48,8 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
             <div className="text-xs text-gray-500 mb-2">Paliers de prix:</div>
             {internetEgressTiers && internetEgressTiers.map((tier, idx) => (
               <div key={idx} className="flex justify-between items-center py-1">
-                <span className="text-xs text-gray-600">{tier.label}</span>
-                <span className="text-xs font-medium">{formatCurrency(tier.cost)}</span>
+                <span className="text-xs text-gray-600">{tier?.label || 'N/A'}</span>
+                <span className="text-xs font-medium">{formatCurrency(tier?.cost || 0)}</span>
               </div>
             ))}
           </div>
