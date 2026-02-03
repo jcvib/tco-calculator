@@ -3,6 +3,8 @@ import { formatCurrency } from '../../utils/formatters';
 export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
   const {
     obCost = 0,
+    obCostWithDiscount,
+    obDiscount = 0,
     obReservedBW = 'N/A',
     obUsage = 'N/A',
     obReservedBWCost = 0,
@@ -19,13 +21,16 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
     privateEgressCost = 0,
     privateEgressRate = 0,
     privateEgressVolume = 'N/A',
-    totalPrivate = 0,
+    totalWithoutDiscount,
+    totalWithDiscount,
     internetEgressTiers = [],
     totalEgress = 0,
     totalVolume = 'N/A',
     regionName = 'N/A',
     bandwidth = 'N/A'
   } = selectedCell || {};
+
+  const hasDiscount = obDiscount > 0;
 
   return (
     <div className="space-y-4">
@@ -43,11 +48,11 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
             <span className="font-medium">{regionName}</span>
           </div>
 
-          {/* Paliers de prix */}
+          {/* Paliers */}
           <div className="mt-3 pt-3 border-t border-blue-200">
             <div className="text-xs text-gray-500 mb-2">Paliers de prix:</div>
             {internetEgressTiers && internetEgressTiers.map((tier, idx) => (
-              <div key={idx} className="flex justify-between items-center py-1">
+              <div key={idx} className="flex justify-between items-center py-0.5">
                 <span className="text-xs text-gray-600">{tier?.label || 'N/A'}</span>
                 <span className="text-xs font-medium">{formatCurrency(tier?.cost || 0)}</span>
               </div>
@@ -63,11 +68,14 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
 
       {/* Connectivité Privée */}
       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-orange-900 mb-3">🔒 Connectivité Privée (OB + DX)</h3>
+        <h3 className="text-sm font-semibold text-orange-900 mb-3 flex items-center gap-2">
+          🔒 Connectivité Privée (OB + {selectedCSP})
+          {hasDiscount && <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded">💰 Remise {obDiscount}%</span>}
+        </h3>
 
         {/* OB ODCC */}
         <div className="mb-3 pb-3 border-b border-orange-200">
-          <div className="text-xs font-semibold text-orange-800 mb-2">Orange Business ODCC</div>
+          <div className="text-xs font-semibold text-orange-800 mb-2">🟠 Orange Business ODCC</div>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">Pays / Routage:</span>
@@ -75,7 +83,7 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">Bande passante:</span>
-              <span>{obReservedBW}</span>
+              <span>{bandwidth}</span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">Reserved BW fee:</span>
@@ -86,19 +94,35 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
               <span>{formatCurrency(obUsageCost)}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-gray-600">Heures par mois (OB):</span>
+              <span className="text-gray-600">Heures par mois:</span>
               <span>{obHours}h</span>
             </div>
-            <div className="flex justify-between font-semibold text-sm pt-1">
-              <span>Coût OB mensuel:</span>
-              <span className="text-orange-600">{formatCurrency(obCost)}</span>
-            </div>
+            
+            {hasDiscount ? (
+              <>
+                <div className="flex justify-between text-xs text-gray-400 line-through mt-2">
+                  <span>Coût OB mensuel (sans remise):</span>
+                  <span>{formatCurrency(obCost)}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-sm pt-1 text-green-700">
+                  <span>Coût OB mensuel (remise {obDiscount}%):</span>
+                  <span>{formatCurrency(obCostWithDiscount)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-between font-semibold text-sm pt-2">
+                <span>Coût OB mensuel:</span>
+                <span className="text-orange-600">{formatCurrency(obCost)}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Port Direct Connect */}
+        {/* Port CSP */}
         <div className="mb-3 pb-3 border-b border-orange-200">
-          <div className="text-xs font-semibold text-blue-800 mb-2">Port Direct Connect:</div>
+          <div className="text-xs font-semibold text-blue-800 mb-2">
+            ☁️ Port {selectedCSP === 'AWS' ? 'Direct Connect' : 'ExpressRoute'}
+          </div>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">Bande passante:</span>
@@ -109,24 +133,26 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
               <span>{formatCurrency(cspPortRate)}/h</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-gray-600">Heures par mois ({selectedCSP}):</span>
+              <span className="text-gray-600">Heures par mois:</span>
               <span>{cspHoursPerMonth}h</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-600">Nombre de circuits (HA):</span>
-              <span>x{cspCircuitCount}</span>
-            </div>
+            {selectedCSP === 'AWS' && (
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-600">Circuits (HA):</span>
+                <span>x{cspCircuitCount}</span>
+              </div>
+            )}
             <div className="flex justify-between font-semibold text-sm pt-1">
-              <span>Coût port mensuel total:</span>
+              <span>Coût port mensuel:</span>
               <span className="text-blue-600">{formatCurrency(cspPortCost)}</span>
             </div>
           </div>
         </div>
 
-        {/* ErGw (si Azure) */}
+        {/* ErGw Azure */}
         {selectedCSP === 'Azure' && erGwCost > 0 && (
           <div className="mb-3 pb-3 border-b border-orange-200">
-            <div className="text-xs font-semibold text-purple-800 mb-2">ExpressRoute Gateway:</div>
+            <div className="text-xs font-semibold text-purple-800 mb-2">🟪 ExpressRoute Gateway</div>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-600">Scale Units:</span>
@@ -146,14 +172,14 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
 
         {/* Private Egress */}
         <div className="mb-3">
-          <div className="text-xs font-semibold text-green-800 mb-2">Egress via Direct Connect:</div>
+          <div className="text-xs font-semibold text-green-800 mb-2">🟩 Egress via {selectedCSP === 'AWS' ? 'Direct Connect' : 'ExpressRoute'}</div>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">Volume:</span>
               <span>{privateEgressVolume}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-gray-600">Tarif DX:</span>
+              <span className="text-gray-600">Tarif:</span>
               <span>{formatCurrency(privateEgressRate)}/GB</span>
             </div>
             <div className="flex justify-between font-semibold text-sm pt-1">
@@ -163,10 +189,27 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
           </div>
         </div>
 
-        <div className="flex justify-between items-center pt-3 border-t border-orange-300">
-          <span className="font-semibold text-orange-900">Total Privé:</span>
-          <span className="font-bold text-orange-600 text-lg">{formatCurrency(totalPrivate)}</span>
-        </div>
+        {/* Total privé */}
+        {hasDiscount ? (
+          <>
+            <div className="flex justify-between items-center pt-2 border-t border-orange-300 text-gray-400 text-sm line-through">
+              <span>Total Privé (sans remise):</span>
+              <span>{formatCurrency(totalWithoutDiscount)}</span>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="font-semibold text-orange-900">Total Privé (remise {obDiscount}%):</span>
+              <span className="font-bold text-green-600 text-lg">{formatCurrency(totalWithDiscount)}</span>
+            </div>
+            <div className="text-center text-xs bg-green-100 text-green-700 py-1 rounded mt-1">
+              💰 Économie remise : {formatCurrency(totalWithoutDiscount - totalWithDiscount)}/mois
+            </div>
+          </>
+        ) : (
+          <div className="flex justify-between items-center pt-3 border-t border-orange-300">
+            <span className="font-semibold text-orange-900">Total Privé:</span>
+            <span className="font-bold text-orange-600 text-lg">{formatCurrency(totalWithDiscount)}</span>
+          </div>
+        )}
       </div>
     </div>
   );

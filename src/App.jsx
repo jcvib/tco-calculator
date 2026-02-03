@@ -1,15 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import Controls from './components/Controls';
 import Heatmap from './components/Heatmap';
-import CellDetails from './components/CellDetails';
+import CellDetailsFlat from './components/CellDetails/indexFlat';
 
 // Fonction pour transformer les données au format attendu
 function transformPricingData(cloudData) {
   const aws = cloudData.providers.aws;
   const azure = cloudData.providers.azure;
   
-  // Transformer AWS port_costs en objet indexé par bandwidth
   const awsPortCosts = {};
   const awsPortCostsJapan = {};
   
@@ -22,19 +21,15 @@ function transformPricingData(cloudData) {
     }
   });
   
-  // AWS private egress : déjà un objet by_region
   const awsPrivateEgress = aws.connectivity.direct_connect.private_egress.by_region;
   
-  // Transformer Azure port costs : array → objet [bandwidth][zone]
   const azurePortCosts = {};
   azure.connectivity.expressroute.port_costs.tiers.standard.metered.forEach(item => {
     azurePortCosts[item.bandwidth] = item.costs_by_zone;
   });
   
-  // Azure private egress : déjà un objet by_zone
   const azurePrivateEgress = azure.connectivity.expressroute.private_egress.by_zone;
   
-  // Azure regions to zones : extraire depuis egress_internet
   const azureRegionsToZones = {};
   const azureEgressRegions = azure.egress_internet.peering_modes.internet.regions;
   
@@ -46,7 +41,6 @@ function transformPricingData(cloudData) {
     };
   });
   
-  // AWS egress regions
   const awsEgressRegions = aws.egress_internet.regions;
   
   return {
@@ -65,6 +59,14 @@ function transformPricingData(cloudData) {
   };
 }
 
+// Engagement OB → % de remise
+const ENGAGEMENT_OPTIONS = [
+  { value: '', label: 'Aucun engagement', discount: 0 },
+  { value: '12', label: '12 mois', discount: 10 },
+  { value: '24', label: '24 mois', discount: 15 },
+  { value: '36', label: '36 mois', discount: 20 },
+];
+
 export default function App() {
   const [pricingData, setPricingData] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState('France');
@@ -73,6 +75,19 @@ export default function App() {
   const [selectedCell, setSelectedCell] = useState(null);
   const [volumeUnit, setVolumeUnit] = useState('native');
   const [capacityThreshold, setCapacityThreshold] = useState(60);
+  
+  // Remise OB : engagement + discount supplémentaire
+  const [obEngagement, setObEngagement] = useState('');       // '', '12', '24', '36'
+  const [obExtraDiscount, setObExtraDiscount] = useState(0);  // % libre
+
+  // Volumes personnalisés
+  const [customVolumes, setCustomVolumes] = useState([]);
+
+  // Calculer obDiscount total = engagement + extra
+  const obDiscount = useMemo(() => {
+    const engagementDiscount = ENGAGEMENT_OPTIONS.find(o => o.value === obEngagement)?.discount || 0;
+    return Math.min(100, engagementDiscount + obExtraDiscount);
+  }, [obEngagement, obExtraDiscount]);
 
   // Charger et transformer les données
   useEffect(() => {
@@ -93,7 +108,6 @@ export default function App() {
           setTimeout(loadPricingData, 100);
         }
       } else {
-        console.log('⏳ Données pas encore prêtes, retry dans 100ms...');
         setTimeout(loadPricingData, 100);
       }
     };
@@ -101,7 +115,6 @@ export default function App() {
     loadPricingData();
   }, []);
 
-  // Afficher loader pendant chargement
   if (!pricingData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -114,10 +127,14 @@ export default function App() {
     );
   }
 
-  const availableBandwidths = selectedCSP === 'AWS' ? pricingData.BANDWIDTHS_AWS : pricingData.BANDWIDTHS_AZURE;
+  // Filtrer bandes passantes AWS (max 10G chez OB)
+  const rawBandwidths = selectedCSP === 'AWS' ? pricingData.BANDWIDTHS_AWS : pricingData.BANDWIDTHS_AZURE;
+  const availableBandwidths = selectedCSP === 'AWS' 
+    ? rawBandwidths.filter(bw => !['25G', '50G', '100G', '400G'].includes(bw))
+    : rawBandwidths;
+  
   const availableRegions = selectedCSP === 'AWS' ? pricingData.AWS_EGRESS_REGIONS : pricingData.AZURE_EGRESS_REGIONS;
 
-  // Reset selectedCell when changing parameters
   const handleCountryChange = (country) => {
     setSelectedCountry(country);
     setSelectedCell(null);
@@ -157,6 +174,14 @@ export default function App() {
           setCapacityThreshold={handleThresholdChange}
           obCountries={pricingData.OB_COUNTRIES}
           availableRegions={availableRegions}
+          obEngagement={obEngagement}
+          setObEngagement={setObEngagement}
+          obExtraDiscount={obExtraDiscount}
+          setObExtraDiscount={setObExtraDiscount}
+          obDiscount={obDiscount}
+          customVolumes={customVolumes}
+          setCustomVolumes={setCustomVolumes}
+          engagementOptions={ENGAGEMENT_OPTIONS}
         />
 
         <Heatmap
@@ -177,9 +202,12 @@ export default function App() {
           azureRegionsToZones={pricingData.AZURE_REGIONS_TO_ZONES}
           azureEgressRegions={pricingData.AZURE_EGRESS_REGIONS}
           azureErGwConfig={pricingData.AZURE_ERGW_CONFIG}
+          obDiscount={obDiscount}
+          customVolumes={customVolumes}
+          setCustomVolumes={setCustomVolumes}
         />
 
-        <CellDetails
+        <CellDetailsFlat
           selectedCell={selectedCell}
           setSelectedCell={setSelectedCell}
           selectedCSP={selectedCSP}
@@ -187,11 +215,11 @@ export default function App() {
           capacityThreshold={capacityThreshold}
         />
 
-        {/* Footer */}
         <div className="mt-8 text-center text-gray-500 text-sm">
-          <p>© 2026 Orange Business - v6.0</p>
+          <p>© 2026 Orange Business - v6.1</p>
           <p className="mt-1">
             {pricingData.OB_COUNTRIES.length} pays | {availableBandwidths.length} bandes passantes
+            {obDiscount > 0 && <span className="ml-2 text-green-600 font-medium">| Remise OB {obDiscount}%</span>}
           </p>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { getCellColor, getTextColor } from '../utils/colors';
 import { getVolumeLabel, parseBandwidth } from '../utils/formatters';
 import { calculateEgressCost, calculatePrivateCost, calculateLinkLoad } from '../utils/calculations';
@@ -20,9 +20,34 @@ export default function Heatmap({
   azurePrivateEgress,
   azureRegionsToZones,
   azureEgressRegions,
-  azureErGwConfig
+  azureErGwConfig,
+  obDiscount,
+  customVolumes,
+  setCustomVolumes
 }) {
-  const VOLUMES_TIB = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500];
+  // "+" inline dans le header
+  const [addingVolume, setAddingVolume] = useState(false);
+  const [inlineVolume, setInlineVolume] = useState('');
+
+  const handleInlineAdd = () => {
+    const vol = parseFloat(inlineVolume);
+    if (vol && vol > 0 && vol <= 1000 && !customVolumes.includes(vol)) {
+      setCustomVolumes([...customVolumes, vol].sort((a, b) => a - b));
+    }
+    setInlineVolume('');
+    setAddingVolume(false);
+  };
+
+  // Volumes fusionnés (base + personnalisés), triés
+  const BASE_VOLUMES_TIB = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500];
+  const VOLUMES_TIB = useMemo(() => {
+    return [...new Set([...BASE_VOLUMES_TIB, ...customVolumes])].sort((a, b) => a - b);
+  }, [customVolumes]);
+
+  // Headers dérivés de VOLUMES_TIB — même deps
+  const volumeHeaders = useMemo(() => {
+    return VOLUMES_TIB.map(vol => getVolumeLabel(vol, volumeUnit, selectedCSP));
+  }, [VOLUMES_TIB, volumeUnit, selectedCSP]);
 
   const heatmapData = useMemo(() => {
     const rows = [];
@@ -35,19 +60,13 @@ export default function Heatmap({
         const volumeGiB = volumeTiB * 1024;
         const volumeDisplay = getVolumeLabel(volumeTiB, volumeUnit, selectedCSP);
 
-        // Calcul charge du lien
         const linkLoad = calculateLinkLoad(volumeTiB, bandwidthMbps, capacityThreshold);
 
-        // Ignorer si charge > 100%
-        if (linkLoad.loadPercent >= 100) {
-          continue;
-        }
+        if (linkLoad.loadPercent >= 100) continue;
 
-        // Calcul egress Internet
         const egressRegions = selectedCSP === 'AWS' ? awsEgressRegions : azureEgressRegions;
         const egressCostData = calculateEgressCost(volumeGiB, selectedRegion, selectedCSP, egressRegions);
 
-        // Calcul connectivité privée
         const privateCost = calculatePrivateCost({
           bandwidth,
           volumeGiB,
@@ -61,11 +80,13 @@ export default function Heatmap({
           azurePortCosts,
           azurePrivateEgress,
           azureRegionsToZones,
-          azureErGwConfig
+          azureErGwConfig,
+          obDiscount
         });
 
         if (!privateCost) continue;
 
+        // savings = egress Internet CSP direct vs OB privé (avec remise)
         const savings = egressCostData.total - privateCost.total;
         const savingsPercent = egressCostData.total > 0 ? (savings / egressCostData.total) * 100 : 0;
 
@@ -101,12 +122,10 @@ export default function Heatmap({
     azurePrivateEgress,
     azureRegionsToZones,
     azureEgressRegions,
-    azureErGwConfig
+    azureErGwConfig,
+    obDiscount,
+    VOLUMES_TIB
   ]);
-
-  const volumeHeaders = useMemo(() => {
-    return VOLUMES_TIB.map(vol => getVolumeLabel(vol, volumeUnit, selectedCSP));
-  }, [volumeUnit, selectedCSP]);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto">
@@ -120,6 +139,37 @@ export default function Heatmap({
             {volumeHeaders.map(vol => (
               <th key={vol} className="header-cell">{vol}/mois</th>
             ))}
+            {/* Colonne "+" pour ajouter un volume inline */}
+            <th className="header-cell" style={{ minWidth: '60px' }}>
+              {addingVolume ? (
+                <input
+                  autoFocus
+                  type="number"
+                  min="0.1"
+                  max="1000"
+                  step="0.1"
+                  value={inlineVolume}
+                  onChange={(e) => setInlineVolume(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleInlineAdd();
+                    if (e.key === 'Escape') { setAddingVolume(false); setInlineVolume(''); }
+                  }}
+                  onBlur={() => { setAddingVolume(false); setInlineVolume(''); }}
+                  placeholder="TiB"
+                  className="w-full px-1 py-0.5 border border-blue-300 rounded text-xs text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                  style={{ maxWidth: '58px' }}
+                />
+              ) : (
+                <button
+                  onClick={() => setAddingVolume(true)}
+                  className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-800 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                  style={{ opacity: 1 }}
+                  title="Ajouter un volume"
+                >
+                  +
+                </button>
+              )}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -169,8 +219,7 @@ export default function Heatmap({
                       })) || [],
                       regionName: selectedRegion,
                       
-                      // Connectivité Privée (mapper depuis privateCost)
-                      totalPrivate: cell.privateCost?.total || 0,
+                      // OB (coûts originaux)
                       obCost: cell.privateCost?.obCost || 0,
                       obReservedBW: `${cell.privateCost?.obReservedBW || 0} USD`,
                       obUsage: `${cell.volumeTiB} TiB`,
@@ -178,19 +227,31 @@ export default function Heatmap({
                       obUsageCost: cell.privateCost?.obUsageCost || 0,
                       obHours: cell.privateCost?.obHours || 730,
                       obCountry: selectedCountry,
+
+                      // OB avec remise
+                      obCostWithDiscount: cell.privateCost?.obCostWithDiscount || cell.privateCost?.obCost || 0,
+                      obDiscount: cell.privateCost?.obDiscount || 0,
                       
+                      // CSP Port (pas de remise CSP)
                       cspPortCost: cell.privateCost?.cspPortCost || 0,
                       cspPortRate: cell.privateCost?.portCostPerHour || 0,
                       cspHoursPerMonth: cell.privateCost?.monthlyHours || 730,
                       cspCircuitCount: cell.privateCost?.numCircuits || 2,
                       
+                      // ErGw Azure
                       erGwCost: cell.privateCost?.erGwCost || 0,
                       erGwScaleUnits: cell.privateCost?.erGwScaleUnits || 0,
                       erGwCostPerUnit: cell.privateCost?.erGwCostPerHour || 0,
                       
+                      // Private Egress
                       privateEgressCost: cell.privateCost?.privateEgressCost || 0,
                       privateEgressRate: cell.privateCost?.privateEgressRate || 0,
                       privateEgressVolume: `${(cell.privateCost?.volumeForEgress || 0).toFixed(2)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
+                      
+                      // Totaux avec/sans remise
+                      totalPrivate: cell.privateCost?.total || 0,
+                      totalWithDiscount: cell.privateCost?.totalWithDiscount || cell.privateCost?.total || 0,
+                      totalWithoutDiscount: cell.privateCost?.totalWithoutDiscount || cell.privateCost?.total || 0,
                       
                       // Économies
                       savingsAmount: cell.savings,
@@ -216,6 +277,8 @@ export default function Heatmap({
                   </td>
                 );
               })}
+              {/* Cellule vide sous le "+" */}
+              <td className="border border-gray-200 bg-gray-50"></td>
             </tr>
           ))}
         </tbody>

@@ -60,7 +60,8 @@ export function calculatePrivateCost(params) {
   const {
     bandwidth, volumeGiB, obCountry, csp, region,
     obPricing, awsPortCosts, awsPortCostsJapan, awsPrivateEgress,
-    azurePortCosts, azurePrivateEgress, azureRegionsToZones, azureErGwConfig
+    azurePortCosts, azurePrivateEgress, azureRegionsToZones, azureErGwConfig,
+    obDiscount = 0
   } = params;
 
   // 1. Coût Orange Business (High Availability + Local uniquement)
@@ -108,7 +109,15 @@ export function calculatePrivateCost(params) {
   const volumeForEgress = csp === 'Azure' ? volumeGiB * 1.073741824 : volumeGiB;
   const privateEgressCost = volumeForEgress * privateEgressRate;
 
+  // 4. Appliquer la remise OB (engagement + discount supplémentaire)
+  const obCostWithDiscount = obMonthlyCost * (1 - obDiscount / 100);
+  
+  // CSP : pas de remise, coûts inchangés
+  const totalWithoutDiscount = obMonthlyCost + cspPortCost + erGwCost + privateEgressCost;
+  const totalWithDiscount = obCostWithDiscount + cspPortCost + erGwCost + privateEgressCost;
+
   return {
+    // Coûts originaux
     obCost: obMonthlyCost,
     obReservedBW: obReservedBW,
     obHourlyRate: obHourlyRate,
@@ -129,7 +138,15 @@ export function calculatePrivateCost(params) {
     volumeForEgress: volumeForEgress,
     
     zone: zone,
-    total: obMonthlyCost + cspPortCost + erGwCost + privateEgressCost
+    
+    // OB avec remise
+    obCostWithDiscount,
+    obDiscount,
+    
+    // Totaux
+    totalWithoutDiscount,
+    totalWithDiscount,
+    total: totalWithDiscount  // total par défaut = avec remise OB
   };
 }
 
