@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import Header from './components/Header';
+import ViewSelector from './components/ViewSelector';
 import Controls from './components/Controls';
 import Heatmap from './components/Heatmap';
 import CellDetailsFlat from './components/CellDetails/indexFlat';
+import MegaportHeatmap from './components/MegaportHeatmap';
 
 // Fonction pour transformer les données au format attendu
 function transformPricingData(cloudData) {
@@ -69,6 +71,7 @@ const ENGAGEMENT_OPTIONS = [
 
 export default function App() {
   const [pricingData, setPricingData] = useState(null);
+  const [viewMode, setViewMode] = useState('tco');
   const [selectedCountry, setSelectedCountry] = useState('France');
   const [selectedCSP, setSelectedCSP] = useState('AWS');
   const [selectedRegion, setSelectedRegion] = useState('eu-west-3');
@@ -117,11 +120,11 @@ export default function App() {
 
   if (!pricingData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0F1117] flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">⏳</div>
-          <div className="text-xl text-gray-700">Chargement des données de pricing...</div>
-          <div className="text-sm text-gray-500 mt-2">Transformation en cours...</div>
+          <div className="text-xl" style={{ color: '#E4E6F1' }}>Chargement des données de pricing...</div>
+          <div className="text-sm mt-2" style={{ color: '#7B809A' }}>Transformation en cours...</div>
         </div>
       </div>
     );
@@ -157,71 +160,92 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen p-8 bg-[#0F1117]">
       <div className="max-w-7xl mx-auto">
         <Header selectedCSP={selectedCSP} />
 
-        <Controls
-          selectedCountry={selectedCountry}
-          setSelectedCountry={handleCountryChange}
-          selectedCSP={selectedCSP}
-          setSelectedCSP={handleCSPChange}
-          selectedRegion={selectedRegion}
-          setSelectedRegion={handleRegionChange}
-          volumeUnit={volumeUnit}
-          setVolumeUnit={setVolumeUnit}
-          capacityThreshold={capacityThreshold}
-          setCapacityThreshold={handleThresholdChange}
-          obCountries={pricingData.OB_COUNTRIES}
-          availableRegions={availableRegions}
-          obEngagement={obEngagement}
-          setObEngagement={setObEngagement}
-          obExtraDiscount={obExtraDiscount}
-          setObExtraDiscount={setObExtraDiscount}
-          obDiscount={obDiscount}
-          customVolumes={customVolumes}
-          setCustomVolumes={setCustomVolumes}
-          engagementOptions={ENGAGEMENT_OPTIONS}
-        />
+        <ViewSelector viewMode={viewMode} setViewMode={setViewMode} />
 
-        <Heatmap
-          selectedCountry={selectedCountry}
-          selectedCSP={selectedCSP}
-          selectedRegion={selectedRegion}
-          volumeUnit={volumeUnit}
-          capacityThreshold={capacityThreshold}
-          setSelectedCell={setSelectedCell}
-          availableBandwidths={availableBandwidths}
-          obPricing={pricingData.OB_PRICING}
-          awsPortCosts={pricingData.AWS_PORT_COSTS}
-          awsPortCostsJapan={pricingData.AWS_PORT_COSTS_JAPAN}
-          awsPrivateEgress={pricingData.AWS_PRIVATE_EGRESS}
-          awsEgressRegions={pricingData.AWS_EGRESS_REGIONS}
-          azurePortCosts={pricingData.AZURE_PORT_COSTS}
-          azurePrivateEgress={pricingData.AZURE_PRIVATE_EGRESS}
-          azureRegionsToZones={pricingData.AZURE_REGIONS_TO_ZONES}
-          azureEgressRegions={pricingData.AZURE_EGRESS_REGIONS}
-          azureErGwConfig={pricingData.AZURE_ERGW_CONFIG}
-          obDiscount={obDiscount}
-          customVolumes={customVolumes}
-          setCustomVolumes={setCustomVolumes}
-        />
+        {viewMode === 'tco' ? (
+          <>
+            <Controls
+              selectedCountry={selectedCountry}
+              setSelectedCountry={handleCountryChange}
+              selectedCSP={selectedCSP}
+              setSelectedCSP={handleCSPChange}
+              selectedRegion={selectedRegion}
+              setSelectedRegion={handleRegionChange}
+              volumeUnit={volumeUnit}
+              setVolumeUnit={setVolumeUnit}
+              capacityThreshold={capacityThreshold}
+              setCapacityThreshold={handleThresholdChange}
+              obCountries={pricingData.OB_COUNTRIES}
+              availableRegions={availableRegions}
+              obEngagement={obEngagement}
+              setObEngagement={setObEngagement}
+              obExtraDiscount={obExtraDiscount}
+              setObExtraDiscount={setObExtraDiscount}
+              obDiscount={obDiscount}
+              customVolumes={customVolumes}
+              setCustomVolumes={setCustomVolumes}
+              engagementOptions={ENGAGEMENT_OPTIONS}
+            />
 
-        <CellDetailsFlat
-          selectedCell={selectedCell}
-          setSelectedCell={setSelectedCell}
-          selectedCSP={selectedCSP}
-          volumeUnit={volumeUnit}
-          capacityThreshold={capacityThreshold}
-        />
+            <Heatmap
+              selectedCountry={selectedCountry}
+              selectedCSP={selectedCSP}
+              selectedRegion={selectedRegion}
+              volumeUnit={volumeUnit}
+              capacityThreshold={capacityThreshold}
+              setSelectedCell={setSelectedCell}
+              availableBandwidths={availableBandwidths}
+              obPricing={pricingData.OB_PRICING}
+              awsPortCosts={pricingData.AWS_PORT_COSTS}
+              awsPortCostsJapan={pricingData.AWS_PORT_COSTS_JAPAN}
+              awsPrivateEgress={pricingData.AWS_PRIVATE_EGRESS}
+              awsEgressRegions={pricingData.AWS_EGRESS_REGIONS}
+              azurePortCosts={pricingData.AZURE_PORT_COSTS}
+              azurePrivateEgress={pricingData.AZURE_PRIVATE_EGRESS}
+              azureRegionsToZones={pricingData.AZURE_REGIONS_TO_ZONES}
+              azureEgressRegions={pricingData.AZURE_EGRESS_REGIONS}
+              azureErGwConfig={pricingData.AZURE_ERGW_CONFIG}
+              obDiscount={obDiscount}
+              customVolumes={customVolumes}
+              setCustomVolumes={setCustomVolumes}
+            />
 
-        <div className="mt-8 text-center text-gray-500 text-sm">
-          <p>© 2026 Orange Business - v6.1</p>
-          <p className="mt-1">
-            {pricingData.OB_COUNTRIES.length} pays | {availableBandwidths.length} bandes passantes
-            {obDiscount > 0 && <span className="ml-2 text-green-600 font-medium">| Remise OB {obDiscount}%</span>}
-          </p>
-        </div>
+            <CellDetailsFlat
+              selectedCell={selectedCell}
+              setSelectedCell={setSelectedCell}
+              selectedCSP={selectedCSP}
+              volumeUnit={volumeUnit}
+              capacityThreshold={capacityThreshold}
+            />
+
+            <div className="mt-8 text-center text-sm" style={{ color: '#7B809A' }}>
+              <p>&copy; 2026 Orange Business - v6.2</p>
+              <p className="mt-1">
+                {pricingData.OB_COUNTRIES.length} pays | {availableBandwidths.length} bandes passantes
+                {obDiscount > 0 && <span className="ml-2 font-medium" style={{ color: '#4ade80' }}>| Remise OB {obDiscount}%</span>}
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <MegaportHeatmap
+              obPricing={pricingData.OB_PRICING}
+              selectedCSP={selectedCSP}
+              setSelectedCSP={setSelectedCSP}
+            />
+
+            <div className="mt-8 text-center text-sm" style={{ color: '#7B809A' }}>
+              <p>&copy; 2026 Orange Business - v6.2</p>
+              <p className="mt-1">
+                OB vs Megaport | Port + 2x VXC
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

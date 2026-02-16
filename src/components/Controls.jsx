@@ -38,18 +38,33 @@ export default function Controls({
     setCustomVolumes(customVolumes.filter(v => v !== vol));
   };
 
+  const selectStyle = {
+    background: '#1A1D27',
+    border: '1px solid #2D3148',
+    color: '#E4E6F1',
+    borderRadius: '0.5rem',
+    padding: '0.5rem 1rem',
+    width: '100%',
+    fontSize: '0.875rem'
+  };
+
+  const inputStyle = {
+    ...selectStyle,
+    appearance: 'textfield'
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-      {/* Contrôles principaux */}
+    <div className="rounded-lg p-6 mb-6" style={{ background: '#222533', border: '1px solid #2D3148' }}>
+      {/* Controles principaux */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            🌍 Pays Orange Business
+          <label className="block text-xs uppercase tracking-wider mb-1.5" style={{ color: '#7B809A' }}>
+            Pays Orange Business
           </label>
           <select
             value={selectedCountry}
             onChange={(e) => setSelectedCountry(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            style={selectStyle}
           >
             {obCountries.map(country => (
               <option key={country} value={country}>{country}</option>
@@ -58,13 +73,13 @@ export default function Controls({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            ☁️ Cloud Provider
+          <label className="block text-xs uppercase tracking-wider mb-1.5" style={{ color: '#7B809A' }}>
+            Cloud Provider
           </label>
           <select
             value={selectedCSP}
             onChange={(e) => setSelectedCSP(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            style={selectStyle}
           >
             <option value="AWS">AWS</option>
             <option value="Azure">Azure</option>
@@ -72,13 +87,13 @@ export default function Controls({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            📍 Région {selectedCSP}
+          <label className="block text-xs uppercase tracking-wider mb-1.5" style={{ color: '#7B809A' }}>
+            Region {selectedCSP}
           </label>
           <select
             value={selectedRegion}
             onChange={(e) => setSelectedRegion(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            style={selectStyle}
           >
             {Object.keys(availableRegions).map(region => (
               <option key={region} value={region}>{region}</option>
@@ -87,17 +102,17 @@ export default function Controls({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            📏 Unité d'affichage
+          <label className="block text-xs uppercase tracking-wider mb-1.5" style={{ color: '#7B809A' }}>
+            Unite d'affichage
           </label>
           <select
             value={volumeUnit}
             onChange={(e) => setVolumeUnit(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            style={selectStyle}
           >
             <option value="native">Native (TiB AWS / TB Azure)</option>
             <option value="tib">TiB (binaire)</option>
-            <option value="tb">TB (décimal)</option>
+            <option value="tb">TB (decimal)</option>
           </select>
         </div>
       </div>
@@ -105,56 +120,56 @@ export default function Controls({
       {/* Row 2 : Seuil + Remise OB + Volumes */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
 
-        {/* Seuil de capacité */}
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            ⚡ Seuil de charge
+        {/* Seuil de capacite */}
+        <div className="p-4 rounded-lg" style={{ background: '#1A1D27', border: '1px solid #2D3148' }}>
+          <label className="block text-xs uppercase tracking-wider mb-2" style={{ color: '#7B809A' }}>
+            Seuil de charge
           </label>
           <div className="flex items-center space-x-3">
-            <span className="text-xs text-gray-500">40%</span>
+            <span className="text-xs" style={{ color: '#7B809A' }}>40%</span>
             <input
               type="range"
               min="40"
               max="80"
               value={capacityThreshold}
               onChange={(e) => setCapacityThreshold(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              className="flex-1 h-2 rounded-lg appearance-none cursor-pointer"
               style={{
-                background: `linear-gradient(to right, #ff6600 0%, #ff6600 ${(capacityThreshold-40)*2.5}%, #e5e7eb ${(capacityThreshold-40)*2.5}%, #e5e7eb 100%)`
+                background: `linear-gradient(to right, #ff6600 0%, #ff6600 ${(capacityThreshold-40)*2.5}%, #2D3148 ${(capacityThreshold-40)*2.5}%, #2D3148 100%)`
               }}
             />
-            <span className="text-xs text-gray-500">80%</span>
+            <span className="text-xs" style={{ color: '#7B809A' }}>80%</span>
           </div>
-          <p className="mt-2 text-xs text-gray-500">
-            Cellules masquées si charge ≥ {capacityThreshold}%
+          <p className="mt-2 text-xs" style={{ color: '#7B809A' }}>
+            Cellules masquees si charge &ge; {capacityThreshold}%
           </p>
         </div>
 
-        {/* Remise OB : Engagement + Discount supplémentaire */}
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-          <label className="block text-sm font-semibold text-green-800 mb-3">
-            💰 Remise Orange Business
+        {/* Remise OB : Engagement + Discount supplementaire */}
+        <div className="p-4 rounded-lg" style={{ background: 'rgba(21,128,61,0.15)', border: '1px solid rgba(34,197,94,0.3)' }}>
+          <label className="block text-xs uppercase tracking-wider mb-3" style={{ color: '#4ade80' }}>
+            Remise Orange Business
           </label>
 
           {/* Engagement */}
           <div className="mb-2">
-            <label className="block text-xs text-gray-600 mb-1">Engagement</label>
+            <label className="block text-xs mb-1" style={{ color: '#7B809A' }}>Engagement</label>
             <select
               value={obEngagement}
               onChange={(e) => setObEngagement(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              style={selectStyle}
             >
               {engagementOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>
-                  {opt.label}{opt.discount > 0 ? ` → ${opt.discount}%` : ''}
+                  {opt.label}{opt.discount > 0 ? ` \u2192 ${opt.discount}%` : ''}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Discount supplémentaire */}
+          {/* Discount supplementaire */}
           <div className="mb-2">
-            <label className="block text-xs text-gray-600 mb-1">Discount supplémentaire (%)</label>
+            <label className="block text-xs mb-1" style={{ color: '#7B809A' }}>Discount supplementaire (%)</label>
             <input
               type="number"
               min="0"
@@ -162,30 +177,30 @@ export default function Controls({
               step="0.5"
               value={obExtraDiscount}
               onChange={(e) => setObExtraDiscount(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              style={inputStyle}
               placeholder="0"
             />
           </div>
 
-          {/* Résumé remise totale */}
+          {/* Resume remise totale */}
           {obDiscount > 0 && (
-            <div className="mt-2 pt-2 border-t border-green-200 text-center">
-              <span className="text-sm font-bold text-green-700">
+            <div className="mt-2 pt-2 text-center" style={{ borderTop: '1px solid rgba(34,197,94,0.3)' }}>
+              <span className="text-sm font-bold" style={{ color: '#4ade80' }}>
                 Remise totale : {obDiscount.toFixed(1)}%
               </span>
             </div>
           )}
         </div>
 
-        {/* Volumes personnalisés */}
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <label className="block text-sm font-semibold text-blue-800 mb-3">
-            📊 Volumes personnalisés
+        {/* Volumes personnalises */}
+        <div className="p-4 rounded-lg" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(96,165,250,0.3)' }}>
+          <label className="block text-xs uppercase tracking-wider mb-3" style={{ color: '#60a5fa' }}>
+            Volumes personnalises
           </label>
 
           <div className="flex items-end gap-2 mb-3">
             <div className="flex-1">
-              <label className="block text-xs text-gray-600 mb-1">Volume (TiB)</label>
+              <label className="block text-xs mb-1" style={{ color: '#7B809A' }}>Volume (TiB)</label>
               <input
                 type="number"
                 min="0.1"
@@ -194,15 +209,16 @@ export default function Controls({
                 value={newVolume}
                 onChange={(e) => setNewVolume(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddVolume()}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                style={inputStyle}
                 placeholder="Ex: 15.5"
               />
             </div>
             <button
               onClick={handleAddVolume}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              className="px-3 py-2 rounded-lg transition-colors text-sm font-medium"
+              style={{ background: '#3b82f6', color: 'white' }}
             >
-              ➕
+              +
             </button>
           </div>
 
@@ -211,21 +227,23 @@ export default function Controls({
               {customVolumes.map(vol => (
                 <div
                   key={vol}
-                  className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+                  style={{ background: 'rgba(59,130,246,0.25)', color: '#93c5fd' }}
                 >
                   <span className="font-medium">{vol} TiB</span>
                   <button
                     onClick={() => handleRemoveVolume(vol)}
-                    className="text-blue-500 hover:text-blue-700 font-bold ml-1"
+                    className="font-bold ml-1 hover:text-white transition-colors"
+                    style={{ color: '#60a5fa' }}
                   >
-                    ×
+                    x
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="mt-2 text-xs" style={{ color: '#7B809A' }}>
             Ajoute des colonnes dans la heatmap
           </p>
         </div>
