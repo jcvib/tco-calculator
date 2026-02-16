@@ -128,10 +128,20 @@ export default function Heatmap({
   ]);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">
-        🔥 Heatmap TCO - Économies/Surcoûts (%)
-      </h2>
+    <div className="rounded-lg p-4 overflow-x-auto" style={{ background: '#222533', border: '1px solid #2D3148' }}>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-bold text-white">
+          Economies OB ODCC vs Egress Internet {selectedCSP} - {selectedCountry} - {selectedRegion}
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-xs" style={{ color: '#4ade80', fontFamily: 'monospace' }}>OB +%</span>
+          <div className="rounded" style={{
+            width: 120, height: 10,
+            background: 'linear-gradient(to right, #15803d, #86efac, #fde68a, #93c5fd, #1d4ed8, #172554)'
+          }} />
+          <span className="text-xs" style={{ color: '#60a5fa', fontFamily: 'monospace' }}>CSP -%</span>
+        </div>
+      </div>
       <table className="w-full border-collapse">
         <thead>
           <tr>
@@ -156,14 +166,14 @@ export default function Heatmap({
                   }}
                   onBlur={() => { setAddingVolume(false); setInlineVolume(''); }}
                   placeholder="TiB"
-                  className="w-full px-1 py-0.5 border border-blue-300 rounded text-xs text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                  style={{ maxWidth: '58px' }}
+                  className="w-full px-1 py-0.5 rounded text-xs text-center focus:ring-1 focus:ring-orange-400 focus:outline-none"
+                  style={{ maxWidth: '58px', background: '#222533', border: '1px solid #2D3148', color: '#E4E6F1' }}
                 />
               ) : (
                 <button
                   onClick={() => setAddingVolume(true)}
-                  className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-800 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
-                  style={{ opacity: 1 }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
+                  style={{ opacity: 1, background: '#2D3148', color: '#FF6600' }}
                   title="Ajouter un volume"
                 >
                   +
@@ -183,7 +193,8 @@ export default function Heatmap({
                   return (
                     <td
                       key={vol}
-                      className="p-2 text-center border border-gray-200 bg-gray-100 text-gray-400 text-xs"
+                      className="p-2 text-center text-xs"
+                      style={{ background: '#1A1D27', border: '1px solid #2D3148', color: '#7B809A' }}
                       title="Capacité dépassée (charge > 100%)"
                     >
                       N/A
@@ -265,10 +276,10 @@ export default function Heatmap({
                     })}
                     title={`Cliquer pour voir les détails | Charge: ${cell.linkLoad.loadPercent.toFixed(0)}%`}
                   >
-                    <div className="text-lg font-bold">
+                    <div className="text-sm font-bold" style={{ fontFamily: 'monospace' }}>
                       {cell.savingsPercent > 0 ? '+' : ''}{cell.savingsPercent.toFixed(0)}%
                     </div>
-                    <div className="text-xs mt-1">
+                    <div className="text-xs mt-0.5" style={{ fontFamily: 'monospace', opacity: 0.8 }}>
                       ${Math.abs(cell.savings).toFixed(0)}
                     </div>
                     {isOverThreshold && (
@@ -278,7 +289,7 @@ export default function Heatmap({
                 );
               })}
               {/* Cellule vide sous le "+" */}
-              <td className="border border-gray-200 bg-gray-50"></td>
+              <td style={{ background: '#1A1D27', border: '1px solid #2D3148' }}></td>
             </tr>
           ))}
         </tbody>
