@@ -14,7 +14,7 @@
 // 3 géographies: Inter - Regional, Local, Regional
 // 12 bandes passantes: 10M, 20M, 50M, 100M, 200M, 300M, 400M, 500M, 1G, 2G, 5G, 10G
 
-const OB_PRICING = {
+export const OB_PRICING = {
   "Germany": {
     "High Availability": {
       "Inter - Regional": {
