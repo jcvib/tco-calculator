@@ -1,6 +1,9 @@
 # Plan d'implémentation — Mode Challenger (Étude de cas)
 ## Document de référence unique pour Claude Code
 
+> ✅ **Implémenté en v7.0 (avril 2026).** Ce document est la spécification technique originale.
+> L'architecture réelle est décrite dans [`DEVELOPMENT.md`](./DEVELOPMENT.md).
+
 ---
 
 ## 1. Contexte métier

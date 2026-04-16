@@ -13,7 +13,7 @@
 // 3 footprints: Global, Regional, Local
 // 12 bandes passantes: 10M, 20M, 50M, 100M, 200M, 300M, 400M, 500M, 1G, 2G, 5G, 10G
 
-const VPNAAS_PRICING = {
+export const VPNAAS_PRICING = {
   "South Africa": {
     "Global": {
       "Cape Town": {

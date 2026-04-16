@@ -3,6 +3,9 @@ import Header from './components/Header';
 import Controls from './components/Controls';
 import Heatmap from './components/Heatmap';
 import CellDetailsFlat from './components/CellDetails/indexFlat';
+import ViewSelector from './components/ViewSelector';
+import ChallengerView from './components/Challenger/ChallengerView';
+import { LanguageProvider, useLanguage } from './i18n/LanguageContext';
 
 // Fonction pour transformer les données au format attendu
 function transformPricingData(cloudData) {
@@ -67,7 +70,36 @@ const ENGAGEMENT_OPTIONS = [
   { value: '36', label: '36 mois', discount: 20 },
 ];
 
+function AppContent() {
+  return <AppInner />
+}
+
+function LangSwitch() {
+  const { lang, setLang } = useLanguage()
+  return (
+    <div className="flex gap-1 border border-gray-200 rounded-lg p-0.5">
+      {['fr', 'en'].map(l => (
+        <button key={l} onClick={() => setLang(l)}
+          className={`px-2.5 py-1 text-xs font-semibold rounded uppercase tracking-wide transition-colors ${
+            lang === l ? 'bg-orange-500 text-white' : 'text-gray-400 hover:text-gray-600'
+          }`}>
+          {l}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
+  )
+}
+
+function AppInner() {
+  const [viewMode, setViewMode] = useState('heatmap');
   const [pricingData, setPricingData] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState('France');
   const [selectedCSP, setSelectedCSP] = useState('AWS');
@@ -127,6 +159,8 @@ export default function App() {
     );
   }
 
+  // AppInner renders inside a LanguageProvider via App → AppContent → AppInner
+
   // Filtrer bandes passantes AWS (max 10G chez OB)
   const rawBandwidths = selectedCSP === 'AWS' ? pricingData.BANDWIDTHS_AWS : pricingData.BANDWIDTHS_AZURE;
   const availableBandwidths = selectedCSP === 'AWS' 
@@ -159,8 +193,16 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
-        <Header selectedCSP={selectedCSP} />
+        <div className="flex items-start justify-between mb-2">
+          <Header selectedCSP={selectedCSP} />
+          <LangSwitch />
+        </div>
 
+        <ViewSelector viewMode={viewMode} setViewMode={setViewMode} />
+
+        {viewMode === 'challenger' && <ChallengerView />}
+
+        {viewMode === 'heatmap' && <>
         <Controls
           selectedCountry={selectedCountry}
           setSelectedCountry={handleCountryChange}
@@ -222,6 +264,7 @@ export default function App() {
             {obDiscount > 0 && <span className="ml-2 text-green-600 font-medium">| Remise OB {obDiscount}%</span>}
           </p>
         </div>
+        </>}
       </div>
     </div>
   );
