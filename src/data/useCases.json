@@ -1,0 +1,136 @@
+[
+  {
+    "id": "A",
+    "label": "On-ramp simple",
+    "label_en": "Simple on-ramp",
+    "description": "1 CSP · 1 région · 1 DC",
+    "description_en": "1 CSP · 1 region · 1 DC",
+    "icon": "arrow-right",
+    "params": ["country", "csps", "bandwidth", "term", "context", "vpnaas_footprint"],
+    "constraints": { "max_csps": 1, "fixed_dcs": 1 },
+    "stacks": {
+      "ob_greenfield": {
+        "bot": { "cc": 1, "vne": 1, "internet": 1 },
+        "mid": { "cc": 1, "vne": 2, "internet": 1 },
+        "a2a": { "cc": 1, "vne": 2, "internet": 1 }
+      },
+      "ob_mpls": {
+        "bot": { "cc": 1, "vpnaas": 1 },
+        "mid": { "cc": 1, "vpnaas": 1 },
+        "a2a": { "cc": 1, "vpnaas": 1 }
+      },
+      "megaport": {
+        "bot": { "port": 1, "mcr": 0, "vxc": "n_csps*2" },
+        "mid": { "port": 2, "mcr": 0, "vxc": "n_csps*2" },
+        "a2a": { "port": 4, "mcr": 0, "vxc": "n_csps*4" }
+      },
+      "equinix": {
+        "bot": { "port": 1, "fcr": 0, "vc": "n_csps*2" },
+        "mid": { "port": 2, "fcr": 0, "vc": "n_csps*2" },
+        "a2a": { "port": 4, "fcr": 0, "vc": "n_csps*4" }
+      }
+    }
+  },
+  {
+    "id": "C",
+    "label": "Multi-cloud",
+    "label_en": "Multi-cloud",
+    "description": "N CSPs · 1 DC",
+    "description_en": "N CSPs · 1 DC",
+    "icon": "cloud",
+    "params": ["country", "csps", "bandwidth", "term", "context", "vpnaas_footprint"],
+    "constraints": { "min_csps": 2, "fixed_dcs": 1 },
+    "stacks": {
+      "ob_greenfield": {
+        "bot": { "cc": "n_csps", "vne": 1, "internet": 1 },
+        "mid": { "cc": "n_csps", "vne": 2, "internet": 1 },
+        "a2a": { "cc": "n_csps", "vne": 2, "internet": 1 }
+      },
+      "ob_mpls": {
+        "bot": { "cc": "n_csps", "vpnaas": 1 },
+        "mid": { "cc": "n_csps", "vpnaas": 1 },
+        "a2a": { "cc": "n_csps", "vpnaas": 1 }
+      },
+      "megaport": {
+        "bot": { "port": 1, "mcr": 0, "vxc": "n_csps" },
+        "mid": { "port": 2, "mcr": 1, "vxc": "n_csps*2" },
+        "a2a": { "port": 4, "mcr": 2, "vxc": "n_csps*2" }
+      },
+      "equinix": {
+        "bot": { "port": 1, "fcr": 0, "vc": "n_csps" },
+        "mid": { "port": 2, "fcr": 1, "vc": "n_csps*2" },
+        "a2a": { "port": 4, "fcr": 2, "vc": "n_csps*2" }
+      }
+    }
+  },
+  {
+    "id": "E",
+    "label": "Multi-site multi-cloud",
+    "label_en": "Multi-site multi-cloud",
+    "description": "N CSPs · N DCs",
+    "description_en": "N CSPs · N DCs",
+    "icon": "network",
+    "params": ["country", "csps", "m_dcs", "bandwidth", "term", "context", "vpnaas_footprint"],
+    "constraints": { "min_csps": 1, "min_dcs": 2 },
+    "stacks": {
+      "ob_greenfield": {
+        "bot": { "cc": "n_csps*m_dcs", "vne": "m_dcs", "internet": 1 },
+        "mid": { "cc": "n_csps*m_dcs", "vne": "m_dcs*2", "internet": 1 },
+        "a2a": { "cc": "n_csps*m_dcs", "vne": "m_dcs*2", "internet": 1 }
+      },
+      "ob_mpls": {
+        "bot": { "cc": "n_csps*m_dcs", "vpnaas": 1 },
+        "mid": { "cc": "n_csps*m_dcs", "vpnaas": 1 },
+        "a2a": { "cc": "n_csps*m_dcs", "vpnaas": 1 }
+      },
+      "megaport": {
+        "bot": { "port": "m_dcs",   "mcr": 0,         "vxc": "n_csps*m_dcs" },
+        "mid": { "port": "m_dcs*2", "mcr": "m_dcs",   "vxc": "n_csps*m_dcs*2" },
+        "a2a": { "port": "m_dcs*2", "mcr": "m_dcs*2", "vxc": "n_csps*m_dcs*2" }
+      },
+      "equinix": {
+        "bot": { "port": "m_dcs",   "fcr": 0,         "vc": "n_csps*m_dcs" },
+        "mid": { "port": "m_dcs*2", "fcr": "m_dcs",   "vc": "n_csps*m_dcs*2" },
+        "a2a": { "port": "m_dcs*2", "fcr": "m_dcs*2", "vc": "n_csps*m_dcs*2" }
+      }
+    }
+  },
+  {
+    "id": "F",
+    "label": "Cloud-to-cloud",
+    "label_en": "Cloud-to-cloud",
+    "description": "Connectivité privée entre CSPs",
+    "description_en": "Private connectivity between CSPs",
+    "icon": "arrows-exchange",
+    "params": ["country", "csps", "bandwidth", "term", "context", "vpnaas_footprint"],
+    "constraints": { "fixed_csps": 2, "fixed_dcs": 1 },
+    "notes": {
+      "ob": "2 CC (un par CSP) + VPNaaS pour chaîner les connexions. La résilience est incluse dans le standard OB.",
+      "megaport_bot": "2×2 VXCs directs sans MCR — routing client-side requis.",
+      "megaport_mid": "MCR assure le routage entre les deux clouds.",
+      "megaport_a2a": "MCR HA (2 instances sur 2 PoPs) pour résilience géographique."
+    },
+    "stacks": {
+      "ob_greenfield": {
+        "bot": { "cc": 2, "vne": 1, "internet": 1 },
+        "mid": { "cc": 2, "vne": 1, "internet": 1 },
+        "a2a": { "cc": 2, "vne": 2, "internet": 1 }
+      },
+      "ob_mpls": {
+        "bot": { "cc": 2, "vpnaas": 1 },
+        "mid": { "cc": 2, "vpnaas": 1 },
+        "a2a": { "cc": 2, "vpnaas": 1 }
+      },
+      "megaport": {
+        "bot": { "port": 0, "mcr": 1, "vxc": 4 },
+        "mid": { "port": 0, "mcr": 1, "vxc": 4 },
+        "a2a": { "port": 0, "mcr": 2, "vxc": 4 }
+      },
+      "equinix": {
+        "bot": { "port": 0, "fcr": 0, "vc": 4 },
+        "mid": { "port": 0, "fcr": 1, "vc": 4 },
+        "a2a": { "port": 0, "fcr": 2, "vc": 4 }
+      }
+    }
+  }
+]

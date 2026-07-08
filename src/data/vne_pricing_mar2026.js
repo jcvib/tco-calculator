@@ -13,7 +13,7 @@
 // 24 pays (Hosting), 26 pays (Internet/MPLS)
 // Périodes de commitment : 1 mois, 12 mois, 24 mois, 36 mois
 
-const VNE_PRICING = {
+export const VNE_PRICING = {
   "hosting": {
     "Australia": {
       "1vCPU_2GB_64GB": {

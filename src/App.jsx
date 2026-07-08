@@ -3,6 +3,8 @@ import Header from './components/Header';
 import Controls from './components/Controls';
 import Heatmap from './components/Heatmap';
 import CellDetailsFlat from './components/CellDetails/indexFlat';
+import ViewSelector from './components/ViewSelector';
+import ChallengerView from './components/Challenger/ChallengerView';
 import { TCV_BANDS, DURATIONS, getDiscountPercent } from './data/discountGrid';
 import { setDisplayCurrency, sortBandwidths } from './utils/formatters';
 import { useLanguage } from './i18n/LanguageContext';
@@ -11,10 +13,10 @@ import { useLanguage } from './i18n/LanguageContext';
 function transformPricingData(cloudData) {
   const aws = cloudData.providers.aws;
   const azure = cloudData.providers.azure;
-  
+
   const awsPortCosts = {};
   const awsPortCostsJapan = {};
-  
+
   aws.connectivity.direct_connect.port_costs.pricing.forEach(item => {
     awsPortCosts[item.bandwidth] = item.cost_per_hour_default;
     if (item.regional_variations && item.regional_variations['ap-northeast-1']) {
@@ -23,36 +25,36 @@ function transformPricingData(cloudData) {
       awsPortCostsJapan[item.bandwidth] = item.cost_per_hour_default;
     }
   });
-  
+
   const awsPrivateEgress = aws.connectivity.direct_connect.private_egress.by_region;
-  
+
   const azurePortCosts = {};
   azure.connectivity.expressroute.port_costs.tiers.standard.metered.forEach(item => {
     azurePortCosts[item.bandwidth] = item.costs_by_zone;
   });
-  
+
   const azurePrivateEgress = azure.connectivity.expressroute.private_egress.by_zone;
-  
+
   const azureRegionsToZones = {};
   const azureEgressRegions = azure.egress_internet.peering_modes.internet.regions;
-  
+
   Object.keys(azureEgressRegions).forEach(regionCode => {
     const region = azureEgressRegions[regionCode];
-    azureRegionsToZones[regionCode] = { 
+    azureRegionsToZones[regionCode] = {
       zone: region.zone,
-      region_name: region.region_name 
+      region_name: region.region_name
     };
   });
-  
+
   const awsEgressRegions = aws.egress_internet.regions;
-  
+
   return {
     AWS_PORT_COSTS: awsPortCosts,
     AWS_PORT_COSTS_JAPAN: awsPortCostsJapan,
     AWS_PRIVATE_EGRESS: awsPrivateEgress,
     AWS_EGRESS_REGIONS: awsEgressRegions,
     BANDWIDTHS_AWS: aws.connectivity.direct_connect.available_bandwidths,
-    
+
     AZURE_PORT_COSTS: azurePortCosts,
     AZURE_PRIVATE_EGRESS: azurePrivateEgress,
     AZURE_REGIONS_TO_ZONES: azureRegionsToZones,
@@ -64,6 +66,7 @@ function transformPricingData(cloudData) {
 
 export default function App() {
   const { t } = useLanguage();
+  const [viewMode, setViewMode] = useState('heatmap');
   const [pricingData, setPricingData] = useState(null);
   const [selectedCountry, setSelectedCountry] = useState('France');
   const [selectedCSP, setSelectedCSP] = useState('AWS');
@@ -113,7 +116,7 @@ export default function App() {
             OB_PRICING_PUBLIC: window.OB_PRICING_PUBLIC,
             OB_COUNTRIES: window.OB_COUNTRIES || Object.keys(window.OB_PRICING_PRIVATE)
           });
-          
+
           console.log('✅ Données chargées et transformées avec succès');
         } catch (error) {
           console.error('❌ Erreur lors de la transformation des données:', error);
@@ -183,6 +186,11 @@ export default function App() {
       <div className="max-w-7xl mx-auto">
         <Header selectedCSP={selectedCSP} />
 
+        <ViewSelector viewMode={viewMode} setViewMode={setViewMode} />
+
+        {viewMode === 'challenger' && <ChallengerView />}
+
+        {viewMode === 'heatmap' && <>
         <Controls
           selectedCountry={selectedCountry}
           setSelectedCountry={handleCountryChange}
@@ -260,6 +268,7 @@ export default function App() {
             {obDiscount > 0 && <span className="ml-2 text-malachite-600 font-medium">{t('app.footerDiscount', { discount: obDiscount })}</span>}
           </p>
         </div>
+        </>}
       </div>
     </div>
   );

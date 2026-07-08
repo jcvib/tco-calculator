@@ -1,275 +1,267 @@
-# 🛠️ Guide de développement - TCO Calculator
+# 🛠️ Guide de développement — TCO Calculator
 
-Guide pour contribuer au projet TCO Calculator.
-
-## Architecture
-
-### Stack technique
-- **React 18** - UI components
-- **Vite 5** - Build tool & dev server
-- **Tailwind CSS 3** - Styling
-- **Recharts 2** - Charts
-
-### Structure modulaire
+## Architecture générale
 
 ```
 src/
-├── components/          # Composants React
-│   ├── Header.jsx      # En-tête
-│   ├── Controls.jsx    # Sélecteurs
-│   ├── Heatmap.jsx     # Table principale
-│   └── CellDetails/    # Détails cellule
-│       ├── index.jsx
-│       ├── Charts.jsx
-│       ├── CostBreakdown.jsx
-│       └── LinkAnalysis.jsx
-├── data/               # Données de pricing
-│   ├── awsPricing.js
-│   ├── azurePricing.js
-│   └── obPricing.js
-├── utils/              # Utilitaires
-│   ├── calculations.js # Calculs TCO
-│   ├── formatters.js   # Formatage
-│   └── colors.js       # Palette heatmap
-├── styles/
-│   └── index.css       # Tailwind + custom
-├── App.jsx             # Composant racine
-└── main.jsx            # Point d'entrée
+├── components/
+│   ├── Header.jsx              En-tête de l'application
+│   ├── Controls.jsx            Filtres heatmap historique
+│   ├── ViewSelector.jsx        Navigation Heatmap ↔ Mode Challenger
+│   ├── Heatmap.jsx             Heatmap OB vs CSP (existante — ne pas modifier)
+│   └── Challenger/             Module Mode Challenger (v7.0)
+│       ├── ChallengerView.jsx
+│       ├── ChallengerForm.jsx
+│       ├── ChallengerResult.jsx
+│       ├── ChallengerHeatmap.jsx
+│       └── BrickBreakdown.jsx
+├── engine/                     Moteur de calcul (sans dépendances React)
+│   ├── pricingEngine.js
+│   ├── stackComposer.js
+│   ├── currencyUtils.js
+│   └── narrativeGenerator.js
+├── data/                       Données statiques (ES modules)
+│   ├── ob_pricing_mar2026.js
+│   ├── vne_pricing_mar2026.js
+│   ├── vpnaas_pricing_mar2026.js
+│   ├── megaport_pricing_mar2026.js   → megaport_pricing_20260403.json
+│   ├── equinix_pricing_mar2026.js    → equinix_pricing_20260403.json
+│   ├── geoMappings.js
+│   └── useCases.json
+└── i18n/
+    ├── LanguageContext.jsx
+    └── translations.js
 ```
 
-## Workflow de développement
+## Stack technique
 
-### 1. Créer une branche
+- **React 18** + **Vite 5** — `"type": "module"` dans package.json
+- **Tailwind CSS 3** — classes utilitaires, pas de CSS custom
+- **Recharts 2** — heatmap historique uniquement
+- **JSON imports** natifs Vite (pas besoin de `with { type: 'json' }` dans le code app)
 
-```bash
-git checkout -b feature/nom-feature
+---
+
+## Moteur de calcul (`src/engine/`)
+
+### `pricingEngine.js`
+
+Point d'entrée principal : `computeAllLevels(params)` et `computeLevel(params)`.
+
+**Flux :**
+1. `computeAllLevels(params)` → détecte si multi-pays (`params.countries`) et route vers `computeLevelMultiCountry` ou `computeLevel`
+2. `computeLevel(params)` → appelle `computeActor` pour les 3 acteurs
+3. `computeActor(actor, params)` → `composeStack` + `calcOB` / `calcMegaport` / `calcEquinix`
+
+**Règles importantes :**
+- Toutes les devises sources passent par `toDisplay(montant, sourceCurrency)` :
+  - OB → source `'EUR'` (ob_pricing, vne_pricing, vpnaas_pricing sont en EUR)
+  - Megaport → source `'USD'`
+  - Equinix → source variable par metro (EUR/GBP/HKD…)
+- En contexte MPLS : `port = 0` pour les acteurs DIY, sauf si `params.add_port_mpls === true`
+- Megaport VXC : fallback symétrique AWS↔Azure (prix identiques, v5 utilise le sampling)
+- Equinix VC : fallback term=12 si 24 ou 36 demandé (pas de données pour ces termes dans le dataset)
+
+**Multi-pays (Cas E) :**
+```
+computeActorMultiCountry(actor, params)
+  ├── perDcStack = composeStack({...params, m_dcs:1}, actor)
+  ├── Pour chaque pays : calcOB/calcMegaport/calcEquinix avec ce stack
+  └── OB : VPNaaS ajouté une seule fois (global), CC + VNE par pays
 ```
 
-### 2. Développer avec hot reload
+### `stackComposer.js`
 
-```bash
-npm run dev
-```
-
-- Modifiez les fichiers
-- Sauvegardez
-- Rechargement automatique !
-
-### 3. Tester
-
-```bash
-# Build production
-npm run build
-
-# Preview
-npm run preview
-```
-
-### 4. Commit et push
-
-```bash
-git add .
-git commit -m "feat: description de la feature"
-git push origin feature/nom-feature
-```
-
-## Ajouter une fonctionnalité
-
-### Exemple : Phase B - Discounts
-
-#### 1. Créer le composant
-
-`src/components/Discounts.jsx` :
-```jsx
-export default function Discounts({ discount, setDiscount }) {
-  return (
-    <div className="bg-white rounded-lg p-4">
-      <h3 className="font-bold mb-2">💰 Remises</h3>
-      {/* UI pour configurer discounts */}
-    </div>
-  );
-}
-```
-
-#### 2. Intégrer dans App.jsx
-
-```jsx
-import Discounts from './components/Discounts';
-
-// Dans App :
-const [discount, setDiscount] = useState(0);
-
-<Discounts discount={discount} setDiscount={setDiscount} />
-```
-
-#### 3. Modifier les calculs
-
-`src/utils/calculations.js` :
-```js
-export function applyDiscount(cost, discountPercent) {
-  return cost * (1 - discountPercent / 100);
-}
-```
-
-#### 4. Tester
-
-```bash
-npm run dev
-# Vérifier visuellement
-# Vérifier les calculs
-```
-
-#### 5. Commit
-
-```bash
-git add .
-git commit -m "feat: ajout système de remises (Phase B)"
-git push
-```
-
-## Modifier les données de pricing
-
-### Structure des données
-
-Les fichiers dans `src/data/` sont des wrappers ES6 qui importent les fichiers legacy :
-- `pricing_data_jan2026.js` (AWS + Azure)
-- `ob_pricing_jan2026.js` (Orange Business)
-
-### Mettre à jour les prix
-
-#### Option 1 : Remplacer les fichiers
-```bash
-# Copier les nouveaux fichiers
-cp nouveau_pricing.js src/data/pricing_data_jan2026.js
-cp nouveau_ob.js src/data/ob_pricing_jan2026.js
-```
-
-#### Option 2 : Modifier directement
-Éditer `src/data/pricing_data_jan2026.js` ou `src/data/ob_pricing_jan2026.js`
-
-⚠️ Ne pas oublier d'exporter via `window` :
-```js
-if (typeof window !== 'undefined') {
-  window.CLOUD_PRICING_DATA = CLOUD_PRICING_DATA;
-}
-```
-
-## Modifier les calculs
-
-### Fichiers de calculs
-
-`src/utils/calculations.js` contient :
-- `calculateEgressCost()` - Egress Internet
-- `calculatePrivateCost()` - Connectivité privée
-- `calculateLinkLoad()` - Charge du lien
-
-### Exemple : Ajouter un nouveau calcul
+Lit `useCases.json` et retourne les quantités de briques pour un acteur/résilience/contexte donné.
 
 ```js
-export function calculateROI(privateCost, egressCost, months) {
-  const monthlySavings = egressCost - privateCost;
-  const totalSavings = monthlySavings * months;
-  return {
-    monthly: monthlySavings,
-    total: totalSavings,
-    breakEven: privateCost / monthlySavings
-  };
-}
+composeStack(params, actor)
+// → { cc:2, vne:2 }  (OB greenfield mid)
+// → { port:2, mcr:1, vxc:2 }  (Megaport mid)
 ```
 
-## Styliser avec Tailwind
+Les expressions comme `"n_csps*m_dcs*2"` sont évaluées par `safeEval()` (regex-whitelisted, pas d'`eval` non maîtrisé).
 
-### Classes disponibles
+### `currencyUtils.js`
 
-Tailwind fournit des classes utilitaires :
-```jsx
-<div className="bg-blue-500 text-white p-4 rounded-lg shadow-md">
-  Contenu
-</div>
-```
+Module-level state `displayCurrency` ('USD' par défaut). Mis à jour par `setDisplayCurrency(cur)` avant chaque recalcul.
 
-### Classes personnalisées
-
-`src/styles/index.css` :
-```css
-.heatmap-cell {
-  @apply p-2 text-center font-semibold border;
-}
-```
-
-### Couleurs custom
-
-`tailwind.config.js` :
 ```js
-theme: {
-  extend: {
-    colors: {
-      'orange-ob': '#ff6600'
+toDisplay(amount, sourceCurrency)
+// EUR 100 → USD 118  (si displayCurrency='USD', EUR rate=1.18)
+// EUR 100 → EUR 100  (si displayCurrency='EUR')
+// USD 698 → EUR 592  (si displayCurrency='EUR')
+
+formatCurrency(amount)
+// 592 → '€592'  ou  '698' → '$698' selon displayCurrency
+```
+
+### `narrativeGenerator.js`
+
+`generateNarrative(allLevels, { resilience, lang })` → string argumentaire commercial.
+
+Deux fonctions internes `buildNarrativeFR` / `buildNarrativeEN`. Dans `ChallengerView`, la narrative est recalculée à chaque render (pas en state) pour réagir instantanément aux changements de langue et de devise.
+
+---
+
+## Données (`src/data/`)
+
+### `useCases.json`
+
+Définit les 4 cas d'usage. Chaque cas a des `stacks` par acteur (`ob_greenfield`, `ob_mpls`, `megaport`, `equinix`) et par niveau de résilience (`bot`, `mid`, `a2a`).
+
+Les quantités peuvent être des entiers ou des expressions : `"n_csps*m_dcs*2"`.
+
+```json
+{
+  "id": "A",
+  "label": "On-ramp simple",
+  "label_en": "Simple on-ramp",
+  "stacks": {
+    "megaport": {
+      "mid": { "port": 2, "mcr": 1, "vxc": "n_csps*2" }
     }
   }
 }
 ```
 
-## Debugging
+Pour ajouter un cas d'usage : ajouter une entrée dans `useCases.json`, les composants se mettent à jour automatiquement.
 
-### Console navigateur
+### `geoMappings.js`
 
-```jsx
-console.log('Debug:', { privateCost, egressCost });
+- `COUNTRY_TO_MEGAPORT` : pays → `{ country_key, metro, loc_id }` (loc_id dans `megaport_pricing_20260403.json`)
+- `COUNTRY_TO_EQUINIX_METRO` : pays → code metro 2 lettres
+- `CHALLENGER_COUNTRIES` : 15 pays disponibles dans le formulaire
+- `CHALLENGER_BANDWIDTHS` : `[50, 100, 200, 500, 1000, 2000, 5000, 10000]` (Mbps)
+- `FX_RATES_TO_USD` : taux vers USD (mise à jour manuelle)
+
+### Mettre à jour les données de pricing
+
+**Megaport :**
+1. Déposer le nouveau JSON dans `src/data/`
+2. Mettre à jour le `import` dans `megaport_pricing_mar2026.js`
+3. Vérifier la structure : `pricing[country_key][loc_id].port[bw][term].monthlyRate`
+4. Vérifier les `loc_id` dans `geoMappings.js` (certains PoPs peuvent changer entre versions)
+
+**Equinix :**
+1. Déposer le nouveau JSON dans `src/data/`
+2. Mettre à jour le `import` dans `equinix_pricing_mar2026.js`
+3. Structure attendue : `services.ports.data`, `services.fabric_cloud_sp.data`, `services.cloud_router.data`
+
+**OB (CC, VNE, VPNaaS) :**
+- Modifier directement les fichiers `.js` (données statiques inline)
+- Tous les montants sont en **EUR**
+- Le wrapper `toDisplay(montant, 'EUR')` gère la conversion à l'affichage
+
+---
+
+## Internationalisation (`src/i18n/`)
+
+### Ajouter une chaîne traduite
+
+1. Ajouter dans `translations.js` dans les deux objets `fr` et `en` :
+```js
+fr: { monSection: { ma_cle: 'Texte français' } }
+en: { monSection: { ma_cle: 'English text'  } }
 ```
 
-### React DevTools
+2. Utiliser dans un composant :
+```jsx
+const { t, lang } = useLanguage()
+// ...
+<span>{t('monSection.ma_cle')}</span>
+```
 
-1. Installer [React DevTools](https://react.dev/learn/react-developer-tools)
-2. Inspecter les composants
-3. Voir le state et props
+Le hook `t(path)` utilise la notation pointée. Si une clé est absente, il retourne le chemin brut (pas d'erreur silencieuse).
 
-### Vite logs
+### Ajouter une langue
 
-Le serveur Vite affiche les erreurs dans le terminal et dans le navigateur.
+1. Ajouter une clé de niveau dans `translations.js` (ex. `es: { ... }`)
+2. Ajouter le bouton dans le composant `LangSwitch` dans `App.jsx`
+3. Le `LanguageContext` est générique — aucune autre modification nécessaire
 
-## Best practices
+---
 
-### Composants
-- Un composant = un fichier
-- Nommer en PascalCase (`Header.jsx`)
-- Props en camelCase
-- Déstructurer les props
+## Composants Challenger
 
-### État
-- useState pour l'état local
-- Props pour passer les données
-- Éviter l'état global (pas nécessaire ici)
+### `ChallengerView.jsx`
+Orchestrateur. Gère les tabs `calc` / `heatmap`, l'état `params` et `allLevels`, la devise, et déclenche le recalcul via `runCompute(params)`. La narrative est un dérivé calculé au render (pas en state).
 
-### Performance
-- useMemo pour calculs coûteux
-- useCallback pour fonctions passées en props
-- React.memo pour composants purs
+### `ChallengerForm.jsx`
+Formulaire à 3 sections (Contexte / Topologie / Réseau). Points clés :
+- Cas E : sélecteurs multi-pays par DC (`dcCountries` array)
+- Contexte MPLS : toggle "Inclure le port" (`addPortMpls`)
+- Les contraintes par cas (`max_csps`, `fixed_csps`) sont lues depuis `useCases.json`
 
-### Commits
-- feat: Nouvelle fonctionnalité
-- fix: Correction de bug
-- docs: Documentation
-- refactor: Refactoring
-- style: Styling
-- test: Tests
+### `ChallengerResult.jsx`
+3 cartes acteurs + tableau synthétique + narrative. La carte "Meilleur prix" est détectée par `findCheapest(level)` et reçoit `border-4` + badge 🏆.
 
-## Phases à venir
+### `ChallengerHeatmap.jsx`
+Deux modes de vue :
+- **Compétitif** (`viewMode='winner'`) : winner par cellule avec % delta OB/DIY
+- **Couverture** (`viewMode='coverage'`) : 3 points colorés (OB|MP|EQ) + fond selon complétude
 
-### Phase B - Discounts
-- [ ] Engagement contractuel (12/24/36 mois)
-- [ ] Remise manuelle (0-50%)
-- [ ] Application cumulative
-- [ ] Affichage prix barré + prix final
+Cas "A+port" : use case virtuel, force `add_port_mpls=true` et `context='mpls'`.
 
-### Phase C - Volumes custom
-- [ ] Modal d'ajout volume
-- [ ] Jusqu'à 3 volumes simultanés
-- [ ] Colonne highlighted
-- [ ] localStorage pour persistance
+Les deux grilles (`winnerGrid`, `coverageGrid`) sont calculées par `useMemo` avec les mêmes dépendances `[usecaseId, context, resilience, term]`.
+
+---
+
+## Workflow de développement
+
+### 1. Créer une branche
+```bash
+git checkout -b feat/nom-feature
+```
+
+### 2. Développer
+```bash
+npm run dev   # Hot reload sur :5173
+```
+
+### 3. Build & vérification
+```bash
+npm run build    # Erreurs TypeScript/JSX éventuelles
+npm run preview  # Test du build sur :4173
+```
+
+### 4. Commit
+```bash
+git add src/ docs/
+git commit -m "feat: description concise"
+git push origin feat/nom-feature
+```
+
+### Conventions de commit
+```
+feat:     Nouvelle fonctionnalité
+fix:      Correction de bug
+data:     Mise à jour des données de pricing
+docs:     Documentation
+refactor: Refactoring sans changement de comportement
+style:    Styling / UI
+```
+
+---
+
+## Problèmes courants
+
+### "Module needs import attribute of type: json"
+Ce message apparaît si on exécute directement avec `node` les fichiers du projet. Les imports JSON natifs sont gérés par Vite. **Toujours lancer via `npm run dev` ou `npm run build`**, pas directement via `node`.
+
+### Devise non mise à jour
+La conversion se fait à l'appel de `toDisplay()` dans les fonctions de calcul. Si un acteur affiche des montants non convertis, vérifier que ses montants passent bien par `toDisplay(valeur, sourceCurrency)` (bug connu en v6 : OB n'utilisait pas `toDisplay` — corrigé en v7).
+
+### Données manquantes dans la heatmap
+Utiliser la vue **Couverture** pour identifier les gaps. Les lacunes connues :
+- Megaport 2G : pas de VXC pricing pour ce débit dans le dataset v5
+- Canada Equinix : metro TO absent du dataset
+- UAE / Afrique du Sud / Inde : Megaport non disponible
+
+---
 
 ## Questions ?
 
-- 📖 Documentation : `docs/`
+- 📖 Spécification Mode Challenger : [`docs/IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)
 - 🐛 Issues : GitHub Issues
 - 💬 Contact : Jean-Charles (Orange Business)
