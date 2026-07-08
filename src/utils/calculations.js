@@ -3,6 +3,14 @@
  */
 
 import { parseBandwidth } from './formatters.js';
+import { eurToUsd } from './currency.js';
+
+// Coûts côté client optionnels (estimation, activables via toggle) — voir calculateNatGwCost / calculateIpsecCpeCost
+// Exportés pour affichage transparent des hypothèses dans l'UI (Controls.jsx)
+export const NAT_GW_HOURLY_USD = 0.045;   // tarif public par défaut AWS/Azure NAT Gateway ($/h)
+export const NAT_GW_PER_GB_USD = 0.045;   // tarif public par défaut AWS/Azure NAT Gateway ($/Go traité)
+export const NAT_GW_MONTHLY_HOURS = 730;
+export const IPSEC_CPE_MONTHLY_USD = 250; // estimation forfaitaire, pas de tarif public de référence
 
 /**
  * Calcule le coût de l'egress Internet avec détail des tiers
@@ -64,13 +72,13 @@ export function calculatePrivateCost(params) {
     obDiscount = 0
   } = params;
 
-  // 1. Coût Orange Business (High Availability + Local uniquement)
-  const obData = obPricing[obCountry]?.['High Availability']?.['Local']?.[bandwidth];
+  // 1. Coût Orange Business — Cloud Connect Private (prix Jul26, EUR natif, PAYG pur)
+  const obData = obPricing[obCountry]?.[bandwidth];
   if (!obData) return null;
 
-  const obMonthlyCost = obData.monthly_cost_744h;
-  const obReservedBW = obData.reserved_bw_fee_usd;
-  const obHourlyRate = obData.hourly_rate_usd;
+  const obMonthlyCost = eurToUsd(obData.monthly_cost_744h);
+  const obReservedBW = 0; // plus de frais de réservation depuis Jul26 — modèle PAYG complet
+  const obHourlyRate = eurToUsd(obData.hourly_rate_eur);
   const obHours = 744;
 
   // 2. Coût Port CSP
@@ -147,6 +155,80 @@ export function calculatePrivateCost(params) {
     totalWithoutDiscount,
     totalWithDiscount,
     total: totalWithDiscount  // total par défaut = avec remise OB
+  };
+}
+
+/**
+ * Coût NAT Gateway estimé côté client — s'applique à tout trafic qui sort vers Internet
+ * côté CSP (baseline egress Internet ET Cloud Connect Public/IPsec), pas à la Cloud Connect
+ * Private (routage privé DX/ExpressRoute, pas de NAT Gateway nécessaire).
+ * Tarifs par défaut : AWS/Azure NAT Gateway public (~0,045$/h + 0,045$/Go traité).
+ */
+export function calculateNatGwCost(volumeGiB) {
+  const hourlyCost = NAT_GW_HOURLY_USD * NAT_GW_MONTHLY_HOURS;
+  const dataCost = volumeGiB * NAT_GW_PER_GB_USD;
+  return { hourlyCost, dataCost, volumeGiB, total: hourlyCost + dataCost };
+}
+
+/**
+ * Coût estimé du boîtier/instance IPsec côté client — uniquement pertinent pour
+ * la Cloud Connect Public/IPsec (tunnels IPsec à terminer côté client).
+ * Estimation forfaitaire, pas de tarif public de référence.
+ */
+export function calculateIpsecCpeCost() {
+  return { total: IPSEC_CPE_MONTHLY_USD };
+}
+
+/**
+ * Calcule le coût de la Cloud Connect Public/IPsec (Evolution Platform) avec détails complets.
+ * Contrairement à la Private CC, il n'y a pas de port DX/ExpressRoute ni d'egress privé :
+ * les tunnels IPsec transitent par Internet, donc le trafic est facturé côté CSP au tarif
+ * egress Internet standard (même grille tarifaire que la baseline "Egress Internet").
+ */
+export function calculatePublicIPsecCost(params) {
+  const {
+    bandwidth, volumeGiB, obCountry, csp, region,
+    obPricingPublic, architecture, egressRegions,
+    obDiscount = 0, includeClientCost = false
+  } = params;
+
+  const obData = obPricingPublic[obCountry]?.[architecture]?.[bandwidth];
+  if (!obData) return null;
+
+  const obMonthlyCost = eurToUsd(obData.monthly_cost_744h);
+  const available = obData.status?.[csp] === 'active';
+
+  const egressCostData = calculateEgressCost(volumeGiB, region, csp, egressRegions);
+  const cspEgressCost = egressCostData.total;
+
+  const natGw = includeClientCost ? calculateNatGwCost(volumeGiB) : { total: 0 };
+  const ipsecCpe = includeClientCost ? calculateIpsecCpeCost() : { total: 0 };
+  const clientCost = natGw.total + ipsecCpe.total;
+
+  const obCostWithDiscount = obMonthlyCost * (1 - obDiscount / 100);
+
+  const totalWithoutDiscount = obMonthlyCost + cspEgressCost + clientCost;
+  const totalWithDiscount = obCostWithDiscount + cspEgressCost + clientCost;
+
+  return {
+    obCost: obMonthlyCost,
+    obCostWithDiscount,
+    obDiscount,
+    architecture,
+    available,
+
+    cspEgressCost,
+    cspEgressTiers: egressCostData.tiers,
+    volumeForEgress: egressCostData.volume,
+
+    natGwCost: natGw.total,
+    natGwDetail: natGw,
+    ipsecCpeCost: ipsecCpe.total,
+    clientCost,
+
+    totalWithoutDiscount,
+    totalWithDiscount,
+    total: totalWithDiscount
   };
 }
 

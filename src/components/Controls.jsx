@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { NAT_GW_HOURLY_USD, NAT_GW_PER_GB_USD, NAT_GW_MONTHLY_HOURS, IPSEC_CPE_MONTHLY_USD } from '../utils/calculations';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Controls({
   selectedCountry,
@@ -13,16 +15,30 @@ export default function Controls({
   setCapacityThreshold,
   obCountries,
   availableRegions,
-  obEngagement,
-  setObEngagement,
+  obTcvBand,
+  setObTcvBand,
+  obDuration,
+  setObDuration,
   obExtraDiscount,
   setObExtraDiscount,
   obDiscount,
   customVolumes,
   setCustomVolumes,
-  engagementOptions
+  tcvBands,
+  durations,
+  ccMode,
+  setCcMode,
+  publicArchitecture,
+  setPublicArchitecture,
+  displayCurrency,
+  setDisplayCurrency,
+  includeClientCost,
+  setIncludeClientCost
 }) {
+  const { t } = useLanguage();
   const [newVolume, setNewVolume] = useState('');
+
+  const [showClientCostAssumptions, setShowClientCostAssumptions] = useState(false);
 
   const handleAddVolume = () => {
     const vol = parseFloat(newVolume);
@@ -38,18 +54,25 @@ export default function Controls({
     setCustomVolumes(customVolumes.filter(v => v !== vol));
   };
 
+  const selectClass = "w-full px-4 py-2 border border-graphite-200 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+  const selectClassSm = "w-full px-3 py-2 border border-graphite-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500";
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <h2 className="text-xl font-semibold text-graphite-900 mb-4">
+        {t('controls.heading')}
+      </h2>
+
       {/* Contrôles principaux */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            🌍 Pays Orange Business
+          <label className="block text-sm font-medium text-graphite-700 mb-2">
+            {t('controls.country')}
           </label>
           <select
             value={selectedCountry}
             onChange={(e) => setSelectedCountry(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            className={selectClass}
           >
             {obCountries.map(country => (
               <option key={country} value={country}>{country}</option>
@@ -58,13 +81,13 @@ export default function Controls({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            ☁️ Cloud Provider
+          <label className="block text-sm font-medium text-graphite-700 mb-2">
+            {t('controls.cloudProvider')}
           </label>
           <select
             value={selectedCSP}
             onChange={(e) => setSelectedCSP(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={selectClass}
           >
             <option value="AWS">AWS</option>
             <option value="Azure">Azure</option>
@@ -72,13 +95,13 @@ export default function Controls({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            📍 Région {selectedCSP}
+          <label className="block text-sm font-medium text-graphite-700 mb-2">
+            {t('controls.region', { csp: selectedCSP })}
           </label>
           <select
             value={selectedRegion}
             onChange={(e) => setSelectedRegion(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={selectClass}
           >
             {Object.keys(availableRegions).map(region => (
               <option key={region} value={region}>{region}</option>
@@ -87,17 +110,17 @@ export default function Controls({
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            📏 Unité d'affichage
+          <label className="block text-sm font-medium text-graphite-700 mb-2">
+            {t('controls.displayUnit')}
           </label>
           <select
             value={volumeUnit}
             onChange={(e) => setVolumeUnit(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            className={selectClass}
           >
-            <option value="native">Native (TiB AWS / TB Azure)</option>
-            <option value="tib">TiB (binaire)</option>
-            <option value="tb">TB (décimal)</option>
+            <option value="native">{t('controls.unitNative')}</option>
+            <option value="tib">{t('controls.unitTib')}</option>
+            <option value="tb">{t('controls.unitTb')}</option>
           </select>
         </div>
       </div>
@@ -106,55 +129,67 @@ export default function Controls({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
 
         {/* Seuil de capacité */}
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            ⚡ Seuil de charge
+        <div className="p-4 bg-graphite-50 border border-graphite-100 rounded-lg">
+          <label className="block text-sm font-medium text-graphite-700 mb-2">
+            {t('controls.capacityThreshold')}
           </label>
           <div className="flex items-center space-x-3">
-            <span className="text-xs text-gray-500">40%</span>
+            <span className="text-xs text-graphite-400">40%</span>
             <input
               type="range"
               min="40"
               max="80"
               value={capacityThreshold}
               onChange={(e) => setCapacityThreshold(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              className="flex-1 h-2 bg-graphite-200 rounded-lg appearance-none cursor-pointer"
               style={{
-                background: `linear-gradient(to right, #ff6600 0%, #ff6600 ${(capacityThreshold-40)*2.5}%, #e5e7eb ${(capacityThreshold-40)*2.5}%, #e5e7eb 100%)`
+                background: `linear-gradient(to right, #FF7900 0%, #FF7900 ${(capacityThreshold-40)*2.5}%, #DBDDE2 ${(capacityThreshold-40)*2.5}%, #DBDDE2 100%)`
               }}
             />
-            <span className="text-xs text-gray-500">80%</span>
+            <span className="text-xs text-graphite-400">80%</span>
           </div>
-          <p className="mt-2 text-xs text-gray-500">
-            Cellules masquées si charge ≥ {capacityThreshold}%
+          <p className="mt-2 text-xs text-graphite-400">
+            {t('controls.capacityThresholdCaption', { threshold: capacityThreshold })}
           </p>
         </div>
 
-        {/* Remise OB : Engagement + Discount supplémentaire */}
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-          <label className="block text-sm font-semibold text-green-800 mb-3">
-            💰 Remise Orange Business
+        {/* Remise OB : grille TCV × durée (modèle EVP) */}
+        <div className="p-4 bg-white border border-graphite-200 rounded-lg">
+          <label className="block text-sm font-medium text-graphite-800 mb-3">
+            {t('controls.discount')}
           </label>
 
-          {/* Engagement */}
+          {/* TCV */}
           <div className="mb-2">
-            <label className="block text-xs text-gray-600 mb-1">Engagement</label>
+            <label className="block text-xs text-graphite-500 mb-1">{t('controls.tcvLabel')}</label>
             <select
-              value={obEngagement}
-              onChange={(e) => setObEngagement(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              value={obTcvBand}
+              onChange={(e) => setObTcvBand(e.target.value)}
+              className={selectClassSm}
             >
-              {engagementOptions.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}{opt.discount > 0 ? ` → ${opt.discount}%` : ''}
-                </option>
+              {tcvBands.map(band => (
+                <option key={band.key} value={band.key}>{t(`controls.tcvBands.${band.key}`)}</option>
               ))}
             </select>
           </div>
 
-          {/* Discount supplémentaire */}
+          {/* Durée */}
           <div className="mb-2">
-            <label className="block text-xs text-gray-600 mb-1">Discount supplémentaire (%)</label>
+            <label className="block text-xs text-graphite-500 mb-1">{t('controls.durationLabel')}</label>
+            <select
+              value={obDuration}
+              onChange={(e) => setObDuration(parseInt(e.target.value))}
+              className={selectClassSm}
+            >
+              {durations.map(d => (
+                <option key={d} value={d}>{t('controls.durationOption', { n: d })}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Discount supplémentaire (dérogation) */}
+          <div className="mb-2">
+            <label className="block text-xs text-graphite-500 mb-1">{t('controls.extraDiscountLabel')}</label>
             <input
               type="number"
               min="0"
@@ -162,30 +197,30 @@ export default function Controls({
               step="0.5"
               value={obExtraDiscount}
               onChange={(e) => setObExtraDiscount(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className={selectClassSm}
               placeholder="0"
             />
           </div>
 
           {/* Résumé remise totale */}
           {obDiscount > 0 && (
-            <div className="mt-2 pt-2 border-t border-green-200 text-center">
-              <span className="text-sm font-bold text-green-700">
-                Remise totale : {obDiscount.toFixed(1)}%
+            <div className="mt-2 pt-2 border-t border-graphite-100 text-center">
+              <span className="text-sm font-bold text-malachite-600">
+                {t('controls.totalDiscount', { value: obDiscount.toFixed(1) })}
               </span>
             </div>
           )}
         </div>
 
         {/* Volumes personnalisés */}
-        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <label className="block text-sm font-semibold text-blue-800 mb-3">
-            📊 Volumes personnalisés
+        <div className="p-4 bg-white border border-graphite-200 rounded-lg">
+          <label className="block text-sm font-medium text-graphite-800 mb-3">
+            {t('controls.customVolumes')}
           </label>
 
           <div className="flex items-end gap-2 mb-3">
             <div className="flex-1">
-              <label className="block text-xs text-gray-600 mb-1">Volume (TiB)</label>
+              <label className="block text-xs text-graphite-500 mb-1">{t('controls.volumeLabel')}</label>
               <input
                 type="number"
                 min="0.1"
@@ -194,15 +229,15 @@ export default function Controls({
                 value={newVolume}
                 onChange={(e) => setNewVolume(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddVolume()}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={selectClassSm}
                 placeholder="Ex: 15.5"
               />
             </div>
             <button
               onClick={handleAddVolume}
-              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              className="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
             >
-              ➕
+              +
             </button>
           </div>
 
@@ -211,12 +246,12 @@ export default function Controls({
               {customVolumes.map(vol => (
                 <div
                   key={vol}
-                  className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs"
+                  className="flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs"
                 >
                   <span className="font-medium">{vol} TiB</span>
                   <button
                     onClick={() => handleRemoveVolume(vol)}
-                    className="text-blue-500 hover:text-blue-700 font-bold ml-1"
+                    className="text-orange-400 hover:text-orange-700 font-bold ml-1"
                   >
                     ×
                   </button>
@@ -225,9 +260,127 @@ export default function Controls({
             </div>
           )}
 
-          <p className="mt-2 text-xs text-gray-500">
-            Ajoute des colonnes dans la heatmap
+          <p className="mt-2 text-xs text-graphite-400">
+            {t('controls.volumeCaption')}
           </p>
+        </div>
+      </div>
+
+      {/* Row 3 : Mode Cloud Connect + Devise + Coûts côté client */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4">
+
+        {/* Mode Cloud Connect */}
+        <div className="p-4 bg-white border border-graphite-200 border-l-4 border-l-orange-500 rounded-lg">
+          <label className="block text-sm font-medium text-graphite-800 mb-3">
+            {t('controls.ccMode')}
+          </label>
+          <div className="flex rounded-lg overflow-hidden border border-graphite-200 mb-2">
+            <button
+              onClick={() => setCcMode('private')}
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                ccMode === 'private' ? 'bg-orange-500 text-white' : 'bg-white text-graphite-600 hover:bg-graphite-50'
+              }`}
+            >
+              {t('controls.ccModePrivate')}
+            </button>
+            <button
+              onClick={() => setCcMode('public')}
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                ccMode === 'public' ? 'bg-orange-500 text-white' : 'bg-white text-graphite-600 hover:bg-graphite-50'
+              }`}
+            >
+              {t('controls.ccModePublic')}
+            </button>
+          </div>
+
+          {ccMode === 'public' && (
+            <div>
+              <label className="block text-xs text-graphite-500 mb-1">{t('controls.architectureLabel')}</label>
+              <select
+                value={publicArchitecture}
+                onChange={(e) => setPublicArchitecture(e.target.value)}
+                className={selectClassSm}
+              >
+                <option value="Standard">{t('controls.architectureStandard')}</option>
+                <option value="High Availability">{t('controls.architectureHa')}</option>
+              </select>
+            </div>
+          )}
+
+          <p className="mt-2 text-xs text-graphite-400">
+            {ccMode === 'public' ? t('controls.ccModeCaptionPublic') : t('controls.ccModeCaptionPrivate')}
+          </p>
+        </div>
+
+        {/* Devise */}
+        <div className="p-4 bg-graphite-50 border border-graphite-100 rounded-lg">
+          <label className="block text-sm font-medium text-graphite-700 mb-3">
+            {t('controls.currency')}
+          </label>
+          <div className="flex rounded-lg overflow-hidden border border-graphite-300">
+            <button
+              onClick={() => setDisplayCurrency('EUR')}
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                displayCurrency === 'EUR' ? 'bg-graphite-800 text-white' : 'bg-white text-graphite-600 hover:bg-graphite-100'
+              }`}
+            >
+              € EUR
+            </button>
+            <button
+              onClick={() => setDisplayCurrency('USD')}
+              className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                displayCurrency === 'USD' ? 'bg-graphite-800 text-white' : 'bg-white text-graphite-600 hover:bg-graphite-100'
+              }`}
+            >
+              $ USD
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-graphite-400">
+            {t('controls.currencyCaption')}
+          </p>
+        </div>
+
+        {/* Coûts côté client */}
+        <div className="p-4 bg-graphite-50 border border-graphite-100 rounded-lg">
+          <div className="flex items-start justify-between gap-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeClientCost}
+                onChange={(e) => setIncludeClientCost(e.target.checked)}
+                className="mt-1 accent-orange-500"
+              />
+              <span>
+                <span className="block text-sm font-medium text-graphite-700">{t('controls.clientCost')}</span>
+                <span className="block text-xs text-graphite-400 mt-1">
+                  {t('controls.clientCostCaption')}
+                </span>
+              </span>
+            </label>
+            <button
+              type="button"
+              onClick={() => setShowClientCostAssumptions(v => !v)}
+              className="text-graphite-400 hover:text-graphite-600 text-sm shrink-0"
+              title={t('controls.clientCostAssumptionsTitle')}
+            >
+              ℹ️
+            </button>
+          </div>
+
+          {showClientCostAssumptions && (
+            <div className="mt-3 pt-3 border-t border-graphite-200 text-xs text-graphite-500 space-y-1.5">
+              <div>
+                <span className="font-medium text-graphite-700">{t('controls.natGwAssumption')}</span> {t('controls.natGwAssumptionContext')}
+                {' '}{t('controls.natGwAssumptionFormula', { hourly: NAT_GW_HOURLY_USD, hours: NAT_GW_MONTHLY_HOURS, perGb: NAT_GW_PER_GB_USD })}
+                <span className="block text-graphite-400">{t('controls.natGwAssumptionNote')}</span>
+              </div>
+              <div>
+                <span className="font-medium text-graphite-700">{t('controls.ipsecCpeAssumption')}</span> {t('controls.ipsecCpeAssumptionContext')}
+                {' '}{t('controls.ipsecCpeAssumptionFormula', { monthly: IPSEC_CPE_MONTHLY_USD })}
+                <span className="block text-graphite-400">{t('controls.ipsecCpeAssumptionNote')}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

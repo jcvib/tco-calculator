@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { getCellColor, getTextColor } from '../utils/colors';
-import { getVolumeLabel, parseBandwidth } from '../utils/formatters';
-import { calculateEgressCost, calculatePrivateCost, calculateLinkLoad } from '../utils/calculations';
+import { getVolumeLabel, parseBandwidth, formatCurrency } from '../utils/formatters';
+import { calculateEgressCost, calculatePrivateCost, calculatePublicIPsecCost, calculateNatGwCost, calculateLinkLoad } from '../utils/calculations';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Heatmap({
   selectedCountry,
@@ -11,7 +12,11 @@ export default function Heatmap({
   capacityThreshold,
   setSelectedCell,
   availableBandwidths,
-  obPricing,
+  obPricingPrivate,
+  obPricingPublic,
+  ccMode,
+  publicArchitecture,
+  includeClientCost,
   awsPortCosts,
   awsPortCostsJapan,
   awsPrivateEgress,
@@ -25,6 +30,8 @@ export default function Heatmap({
   customVolumes,
   setCustomVolumes
 }) {
+  const { t } = useLanguage();
+
   // "+" inline dans le header
   const [addingVolume, setAddingVolume] = useState(false);
   const [inlineVolume, setInlineVolume] = useState('');
@@ -39,7 +46,9 @@ export default function Heatmap({
   };
 
   // Volumes fusionnés (base + personnalisés), triés
-  const BASE_VOLUMES_TIB = [0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500];
+  // Échelle resserrée sous 50 TiB/mois (~90% des clients/prospects) ; les volumes
+  // plus élevés restent accessibles via le "+" personnalisé pour les cas hors norme.
+  const BASE_VOLUMES_TIB = [0.5, 1, 2, 5, 10, 20, 30, 40, 50];
   const VOLUMES_TIB = useMemo(() => {
     return [...new Set([...BASE_VOLUMES_TIB, ...customVolumes])].sort((a, b) => a - b);
   }, [customVolumes]);
@@ -65,28 +74,52 @@ export default function Heatmap({
         if (linkLoad.loadPercent >= 100) continue;
 
         const egressRegions = selectedCSP === 'AWS' ? awsEgressRegions : azureEgressRegions;
-        const egressCostData = calculateEgressCost(volumeGiB, selectedRegion, selectedCSP, egressRegions);
+        const rawEgressCostData = calculateEgressCost(volumeGiB, selectedRegion, selectedCSP, egressRegions);
 
-        const privateCost = calculatePrivateCost({
-          bandwidth,
-          volumeGiB,
-          obCountry: selectedCountry,
-          csp: selectedCSP,
-          region: selectedRegion,
-          obPricing,
-          awsPortCosts,
-          awsPortCostsJapan,
-          awsPrivateEgress,
-          azurePortCosts,
-          azurePrivateEgress,
-          azureRegionsToZones,
-          azureErGwConfig,
-          obDiscount
-        });
+        // Baseline "Egress Internet direct" : + NAT GW estimé côté client si activé
+        // (une VPC/VNet qui route du trafic sortant vers Internet a besoin d'un NAT Gateway,
+        // que ce trafic soit en clair ou encapsulé IPsec)
+        const natGwBaseline = includeClientCost ? calculateNatGwCost(volumeGiB) : { total: 0 };
+        const egressCostData = {
+          ...rawEgressCostData,
+          natGwCost: natGwBaseline.total,
+          natGwDetail: natGwBaseline,
+          total: rawEgressCostData.total + natGwBaseline.total
+        };
+
+        const privateCost = ccMode === 'public'
+          ? calculatePublicIPsecCost({
+              bandwidth,
+              volumeGiB,
+              obCountry: selectedCountry,
+              csp: selectedCSP,
+              region: selectedRegion,
+              obPricingPublic,
+              architecture: publicArchitecture,
+              egressRegions,
+              obDiscount,
+              includeClientCost
+            })
+          : calculatePrivateCost({
+              bandwidth,
+              volumeGiB,
+              obCountry: selectedCountry,
+              csp: selectedCSP,
+              region: selectedRegion,
+              obPricing: obPricingPrivate,
+              awsPortCosts,
+              awsPortCostsJapan,
+              awsPrivateEgress,
+              azurePortCosts,
+              azurePrivateEgress,
+              azureRegionsToZones,
+              azureErGwConfig,
+              obDiscount
+            });
 
         if (!privateCost) continue;
 
-        // savings = egress Internet CSP direct vs OB privé (avec remise)
+        // savings = egress Internet CSP direct vs OB (avec remise)
         const savings = egressCostData.total - privateCost.total;
         const savingsPercent = egressCostData.total > 0 ? (savings / egressCostData.total) * 100 : 0;
 
@@ -113,7 +146,11 @@ export default function Heatmap({
     volumeUnit,
     capacityThreshold,
     availableBandwidths,
-    obPricing,
+    obPricingPrivate,
+    obPricingPublic,
+    ccMode,
+    publicArchitecture,
+    includeClientCost,
     awsPortCosts,
     awsPortCostsJapan,
     awsPrivateEgress,
@@ -128,16 +165,51 @@ export default function Heatmap({
   ]);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 overflow-x-auto">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">
-        🔥 Heatmap TCO - Économies/Surcoûts (%)
-      </h2>
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="flex items-start justify-between gap-6 mb-4 flex-wrap">
+        <div>
+          <h2 className="text-xl font-semibold text-graphite-900">
+            {t('heatmap.title')}
+          </h2>
+          <p className="text-sm text-graphite-500 mt-0.5">
+            {t('heatmap.subtitle', {
+              mode: ccMode === 'public'
+                ? t('heatmap.modePublic', { architecture: publicArchitecture === 'Standard' ? t('heatmap.architectureStandard') : t('heatmap.architectureHa') })
+                : t('heatmap.modePrivate'),
+              csp: selectedCSP
+            })}
+          </p>
+        </div>
+
+        {/* Légende : sens de lecture + échelle de couleur */}
+        <div className="text-xs text-graphite-500 shrink-0">
+          <div className="flex items-center gap-2 mb-1.5 justify-end">
+            <span className="font-medium text-graphite-600">{t('heatmap.legendMoreExpensive')}</span>
+            <div className="flex h-2.5 w-40 rounded-full overflow-hidden border border-graphite-200">
+              <div className="flex-1" style={{ backgroundColor: '#8B8F99' }}></div>
+              <div className="flex-1" style={{ backgroundColor: '#DBDDE2' }}></div>
+              <div className="flex-1" style={{ backgroundColor: '#F7F8F9' }}></div>
+              <div className="flex-1" style={{ backgroundColor: '#FFCB85' }}></div>
+              <div className="flex-1" style={{ backgroundColor: '#9C4700' }}></div>
+            </div>
+            <span className="font-medium text-graphite-600">{t('heatmap.legendLessExpensive')}</span>
+          </div>
+          <p className="text-right">{t('heatmap.legendCaption', { csp: selectedCSP })}</p>
+        </div>
+      </div>
+
+      <div className="flex text-xs font-medium text-graphite-400 mb-1 pl-[100px]">
+        <span>{t('heatmap.volumeAxis')}</span>
+      </div>
+
+      <div className="rounded-lg border border-graphite-200 overflow-hidden">
+      <div className="overflow-x-auto">
       <table className="w-full border-collapse">
         <thead>
           <tr>
-            <th className="header-cell">Bande passante</th>
+            <th className="header-cell">{t('heatmap.bandwidthAxis')}</th>
             {volumeHeaders.map(vol => (
-              <th key={vol} className="header-cell">{vol}/mois</th>
+              <th key={vol} className="header-cell">{vol}{t('heatmap.perMonthSuffix')}</th>
             ))}
             {/* Colonne "+" pour ajouter un volume inline */}
             <th className="header-cell" style={{ minWidth: '60px' }}>
@@ -156,15 +228,15 @@ export default function Heatmap({
                   }}
                   onBlur={() => { setAddingVolume(false); setInlineVolume(''); }}
                   placeholder="TiB"
-                  className="w-full px-1 py-0.5 border border-blue-300 rounded text-xs text-center focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                  className="w-full px-1 py-0.5 border border-orange-300 rounded text-xs text-center focus:ring-1 focus:ring-orange-400 focus:outline-none"
                   style={{ maxWidth: '58px' }}
                 />
               ) : (
                 <button
                   onClick={() => setAddingVolume(true)}
-                  className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 hover:text-blue-800 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                  className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 hover:bg-orange-200 hover:text-orange-800 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
                   style={{ opacity: 1 }}
-                  title="Ajouter un volume"
+                  title={t('heatmap.addVolumeTitle')}
                 >
                   +
                 </button>
@@ -183,8 +255,8 @@ export default function Heatmap({
                   return (
                     <td
                       key={vol}
-                      className="p-2 text-center border border-gray-200 bg-gray-100 text-gray-400 text-xs"
-                      title="Capacité dépassée (charge > 100%)"
+                      className="p-2 text-center border border-graphite-200 bg-graphite-100 text-graphite-400 text-xs"
+                      title={t('heatmap.capacityExceeded')}
                     >
                       N/A
                     </td>
@@ -206,83 +278,103 @@ export default function Heatmap({
                     }}
                     onClick={() => setSelectedCell({
                       // Infos de base
+                      ccMode,
                       bandwidth: row.bandwidth,
                       totalVolume: vol,
                       volumeTiB: cell.volumeTiB,
                       volumeGiB: cell.volumeGiB,
-                      
-                      // Egress Internet
+
+                      // Egress Internet (baseline)
                       totalEgress: cell.egressCost,
+                      natGwBaselineCost: cell.egressCostData?.natGwCost || 0,
+                      natGwBaselineDetail: cell.egressCostData?.natGwDetail || null,
                       internetEgressTiers: cell.egressCostData?.tiers?.map(t => ({
                         label: `${t.min.toFixed(0)}-${t.max === Infinity ? '∞' : t.max.toFixed(0)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
                         cost: t.cost
                       })) || [],
                       regionName: selectedRegion,
-                      
+
                       // OB (coûts originaux)
                       obCost: cell.privateCost?.obCost || 0,
-                      obReservedBW: `${cell.privateCost?.obReservedBW || 0} USD`,
+                      obReservedBW: ccMode === 'public' ? '0 (PAYG)' : `${cell.privateCost?.obReservedBW || 0} — PAYG`,
                       obUsage: `${cell.volumeTiB} TiB`,
                       obReservedBWCost: cell.privateCost?.obReservedBW || 0,
-                      obUsageCost: cell.privateCost?.obUsageCost || 0,
-                      obHours: cell.privateCost?.obHours || 730,
+                      obUsageCost: cell.privateCost?.obUsageCost ?? cell.privateCost?.obCost ?? 0,
+                      obHours: cell.privateCost?.obHours || 744,
                       obCountry: selectedCountry,
+                      obArchitecture: ccMode === 'public' ? publicArchitecture : 'High Availability',
+                      obAvailable: ccMode === 'public' ? (cell.privateCost?.available ?? true) : true,
 
                       // OB avec remise
                       obCostWithDiscount: cell.privateCost?.obCostWithDiscount || cell.privateCost?.obCost || 0,
                       obDiscount: cell.privateCost?.obDiscount || 0,
-                      
-                      // CSP Port (pas de remise CSP)
+
+                      // Private uniquement : Port CSP (pas de remise CSP)
                       cspPortCost: cell.privateCost?.cspPortCost || 0,
                       cspPortRate: cell.privateCost?.portCostPerHour || 0,
                       cspHoursPerMonth: cell.privateCost?.monthlyHours || 730,
                       cspCircuitCount: cell.privateCost?.numCircuits || 2,
-                      
-                      // ErGw Azure
+
+                      // Private uniquement : ErGw Azure
                       erGwCost: cell.privateCost?.erGwCost || 0,
                       erGwScaleUnits: cell.privateCost?.erGwScaleUnits || 0,
                       erGwCostPerUnit: cell.privateCost?.erGwCostPerHour || 0,
-                      
-                      // Private Egress
+
+                      // Private uniquement : Egress privé DX/ExpressRoute
                       privateEgressCost: cell.privateCost?.privateEgressCost || 0,
                       privateEgressRate: cell.privateCost?.privateEgressRate || 0,
                       privateEgressVolume: `${(cell.privateCost?.volumeForEgress || 0).toFixed(2)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
-                      
+
+                      // Public/IPsec uniquement : egress Internet côté CSP + coûts client
+                      cspEgressCost: cell.privateCost?.cspEgressCost || 0,
+                      cspEgressTiers: cell.privateCost?.cspEgressTiers?.map(t => ({
+                        label: `${t.min.toFixed(0)}-${t.max === Infinity ? '∞' : t.max.toFixed(0)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
+                        cost: t.cost
+                      })) || [],
+                      natGwCost: cell.privateCost?.natGwCost || 0,
+                      natGwDetail: cell.privateCost?.natGwDetail || null,
+                      ipsecCpeCost: cell.privateCost?.ipsecCpeCost || 0,
+
                       // Totaux avec/sans remise
                       totalPrivate: cell.privateCost?.total || 0,
                       totalWithDiscount: cell.privateCost?.totalWithDiscount || cell.privateCost?.total || 0,
                       totalWithoutDiscount: cell.privateCost?.totalWithoutDiscount || cell.privateCost?.total || 0,
-                      
+
                       // Économies
                       savingsAmount: cell.savings,
                       savingsPercent: cell.savingsPercent,
-                      
+
                       // Link Load
                       linkLoadPercent: cell.linkLoad?.loadPercent || 0,
                       volumeDemanded: `${cell.volumeTiB} TiB`,
                       capacityMonthly: `${cell.linkLoad?.capacityTiB?.toFixed(2) || 0} TiB`,
                       chargeTheoric: `${cell.linkLoad?.loadPercent?.toFixed(1) || 0}%`
                     })}
-                    title={`Cliquer pour voir les détails | Charge: ${cell.linkLoad.loadPercent.toFixed(0)}%`}
+                    title={`${t('heatmap.clickForDetails', { load: cell.linkLoad.loadPercent.toFixed(0) })}${ccMode === 'public' && !cell.privateCost?.available ? t('heatmap.notAvailableSuffix') : ''}`}
                   >
                     <div className="text-lg font-bold">
                       {cell.savingsPercent > 0 ? '+' : ''}{cell.savingsPercent.toFixed(0)}%
                     </div>
                     <div className="text-xs mt-1">
-                      ${Math.abs(cell.savings).toFixed(0)}
+                      {formatCurrency(Math.abs(cell.savings))}
                     </div>
                     {isOverThreshold && (
                       <div className="text-xs mt-1">⚠️</div>
+                    )}
+                    {ccMode === 'public' && !cell.privateCost?.available && (
+                      <div className="text-xs mt-1" title={t('heatmap.notAvailableTitle')}>🚧</div>
                     )}
                   </td>
                 );
               })}
               {/* Cellule vide sous le "+" */}
-              <td className="border border-gray-200 bg-gray-50"></td>
+              <td className="border border-graphite-200 bg-graphite-50"></td>
             </tr>
           ))}
         </tbody>
       </table>
+      </div>
+      </div>
     </div>
   );
 }

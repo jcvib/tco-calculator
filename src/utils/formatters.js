@@ -2,6 +2,30 @@
  * Utilitaires de formatage pour nombres, unités, devises
  */
 
+import { usdToEur } from './currency.js';
+
+// Ordre canonique des bandes passantes OB (Jul26) : 5M à 10G
+export const BANDWIDTH_ORDER = [
+  '5M', '10M', '20M', '30M', '40M', '50M', '100M', '200M', '300M', '400M', '500M',
+  '1G', '2G', '5G', '10G',
+];
+
+export function sortBandwidths(bandwidths) {
+  return [...bandwidths].sort((a, b) => BANDWIDTH_ORDER.indexOf(a) - BANDWIDTH_ORDER.indexOf(b));
+}
+
+// Devise d'affichage — tous les calculs internes restent en USD,
+// la conversion n'a lieu qu'au moment du formatage.
+let displayCurrency = 'EUR';
+
+export function setDisplayCurrency(currency) {
+  displayCurrency = currency;
+}
+
+export function getDisplayCurrency() {
+  return displayCurrency;
+}
+
 export const VOLUME_LABELS = {
   0.5: "512 GiB",
   1: "1 TiB",
@@ -22,11 +46,14 @@ export function parseBandwidth(bw) {
   return parseInt(bw);
 }
 
-export function formatCurrency(amount) {
-  if (amount === undefined || amount === null || isNaN(amount)) {
-    return '$0.00';
+export function formatCurrency(amountUsd) {
+  if (amountUsd === undefined || amountUsd === null || isNaN(amountUsd)) {
+    return displayCurrency === 'EUR' ? '0,00 €' : '$0.00';
   }
-  return `$${Number(amount).toFixed(2)}`;
+  if (displayCurrency === 'EUR') {
+    return `${usdToEur(Number(amountUsd)).toFixed(2)} €`;
+  }
+  return `$${Number(amountUsd).toFixed(2)}`;
 }
 
 export function formatPercentage(value) {

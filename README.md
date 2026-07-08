@@ -4,6 +4,15 @@ Calculateur de Total Cost of Ownership (TCO) pour comparer les coûts de connect
 
 ## ✨ Fonctionnalités
 
+### Phase B - Public/IPsec, remise EVP & internationalisation (v6.2)
+- ✅ Cloud Connect Public/IPsec (Evolution Platform), architectures Standard et Haute Disponibilité
+- ✅ Grille de remise à deux dimensions (TCV × durée d'engagement)
+- ✅ Bascule d'affichage EUR/USD
+- ✅ Estimation optionnelle des coûts côté client (NAT Gateway + boîtier IPsec), hypothèses affichées
+- ✅ Interface bilingue FR/EN
+- ✅ Identité visuelle Orange (couleur de marque, Helvetica Neue, grille inspirée d'OUDS)
+- ✅ Échelle de volumes resserrée sous 50 TiB/mois, volumes plus élevés ajoutables à la volée
+
 ### Phase A - Graphiques & Détails (v6.0)
 - ✅ Heatmap interactive avec économies/surcoûts
 - ✅ Graphiques Recharts professionnels
@@ -110,10 +119,19 @@ npm run preview    # Preview du build
 
 Les données de pricing sont mises à jour régulièrement :
 - **AWS** : Direct Connect + Egress Internet
-- **Azure** : ExpressRoute + Egress Internet  
-- **Orange Business** : ODCC (15 pays)
+- **Azure** : ExpressRoute + Egress Internet
+- **Orange Business** : Cloud Connect Private + Public/IPsec (15 pays)
 
-Source des données : `cloud_pricing_20260126_183930.json`
+| Jeu de données | Source | Date |
+|---|---|---|
+| AWS / Azure (port, egress) | `pricing_data_jan2026.js` | 2026-01-26 |
+| Orange Business Cloud Connect (Private + Public/IPsec) | `ODCCpricingJul26.csv` → `public/ob_pricing_jul2026.js` | 2026-07 |
+
+Le pricing OB Jul26 est intégralement PAYG (plus de frais de réservation), nativement en EUR, avec disponibilité par CSP tracée par bande passante. Pour régénérer ce fichier après une nouvelle extraction tarifaire :
+```bash
+node scripts/convert_ob_pricing.mjs "<chemin CSV>" public/ob_pricing_<label>.js
+```
+puis mettre à jour la référence du script dans `index.html`.
 
 ## 🎯 Utilisation
 
@@ -143,6 +161,17 @@ npm run build
 - Vider le cache du navigateur (Ctrl+F5)
 
 ## 📝 Changelog
+
+### v6.2 (2026-07-08)
+- ✨ Nouveau : Cloud Connect Public/IPsec (Evolution Platform) — architectures Standard et Haute Disponibilité, egress facturé côté CSP au tarif Internet standard (pas de port/egress privé DX/ExpressRoute)
+- ✨ Nouvelle grille de remise Orange Business à deux dimensions (TCV × durée d'engagement, modèle EVP), remplace l'ancien modèle "engagement seul"
+- ✨ Bascule d'affichage EUR/USD (l'OB est facturé en EUR, les coûts CSP en USD — conversion à l'affichage uniquement, les calculs internes restent en USD)
+- ✨ Estimation optionnelle des coûts côté client (NAT Gateway + boîtier IPsec), hypothèses de calcul consultables dans l'UI
+- ✨ Interface bilingue FR/EN (switch dans le header)
+- ✨ Identité visuelle : couleur de marque Orange (#FF7900), police Helvetica Neue, grille et hiérarchie typographique inspirées d'OUDS
+- ✨ Échelle de volumes resserrée sous 50 TiB/mois (≈90% du parc clients/prospects), volumes élevés toujours accessibles via l'ajout personnalisé
+- 🔄 Pricing Orange Business Cloud Connect mis à jour — source `ODCCpricingJul26.csv` (juillet 2026), modèle 100% PAYG (suppression des frais de réservation), bandes passantes étendues (5M-40M ajoutées)
+- 🐛 Fix : violation des Rules of Hooks dans `App.jsx` (hook appelé après un retour conditionnel)
 
 ### v6.0 (2026-01-27)
 - ✨ Migration vers architecture React + Vite modulaire
