@@ -1,6 +1,7 @@
 import { useLanguage } from '../i18n/LanguageContext';
+import { formatDate } from '../utils/formatters';
 
-export default function Header({ selectedCSP }) {
+export default function Header({ selectedCSP, pricingGeneratedAt }) {
   const { lang, setLang, t } = useLanguage();
 
   return (
@@ -15,6 +16,11 @@ export default function Header({ selectedCSP }) {
             <p className="text-graphite-500 text-sm">
               {t('header.tagline')}
             </p>
+            {pricingGeneratedAt && (
+              <p className="text-graphite-400 text-xs mt-0.5">
+                {t('header.pricingFreshness', { date: formatDate(pricingGeneratedAt, lang) })}
+              </p>
+            )}
           </div>
         </div>
 

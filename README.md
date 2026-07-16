@@ -88,13 +88,15 @@ tco-calculator/
 │   │   ├── currencyUtils.js        Conversion de devises (toDisplay, formatCurrency)
 │   │   └── narrativeGenerator.js   Argumentaire commercial FR/EN
 │   ├── data/
-│   │   ├── ob_pricing_mar2026.js      OB Cloud Connect (Challenger) — prix par pays/débit
+│   │   ├── ob_pricing_jul2026.js      OB Cloud Connect (Private + Public/IPsec) — source unique, Heatmap ET Challenger
 │   │   ├── vne_pricing_mar2026.js     VNE hosting + internet
 │   │   ├── vpnaas_pricing_mar2026.js  VPNaaS OB
 │   │   ├── megaport_pricing_20260403.json / equinix_pricing_20260403.json  Pricing Megaport/Equinix
 │   │   ├── geoMappings.js          Pays → PoP Megaport + metro Equinix + taux FX
 │   │   ├── useCases.json           Définition des 4 cas d'usage Challenger
 │   │   └── discountGrid.js         Grille de remise EVP (TCV × durée) — Heatmap OB vs CSP
+│   ├── hooks/
+│   │   └── useUrlState.js          Synchronise la config Heatmap avec les query params de l'URL (lien partageable)
 │   ├── utils/                      # Calculs & formatage — Heatmap OB vs CSP
 │   │   ├── calculations.js, formatters.js, colors.js, currency.js
 │   ├── i18n/
@@ -102,10 +104,8 @@ tco-calculator/
 │   │   └── translations.js         Toutes les chaînes FR/EN (les deux vues)
 │   ├── App.jsx
 │   └── main.jsx
-├── public/
-│   └── ob_pricing_jul2026.js       Pricing OB Cloud Connect (Heatmap OB vs CSP), chargé en <script>
 ├── scripts/
-│   └── convert_ob_pricing.mjs      Régénère public/ob_pricing_*.js depuis un export CSV ODCC
+│   └── convert_ob_pricing.mjs      Régénère src/data/ob_pricing_*.js depuis un export CSV ODCC
 ├── docs/
 │   ├── SETUP_LOCAL.md
 │   ├── SETUP_AMPLIFY.md
@@ -141,18 +141,18 @@ Pas de dépendance d'internationalisation externe — i18n maison (`src/i18n/`).
 | Jeu de données | Source | Date |
 |---|---|---|
 | AWS / Azure (port, egress) | `pricing_data_jan2026.js` | 2026-01-26 |
-| Orange Business Cloud Connect (Private + Public/IPsec) | `ODCCpricingJul26.csv` → `public/ob_pricing_jul2026.js` | 2026-07 |
+| Orange Business Cloud Connect (Private + Public/IPsec) | `ODCCpricingJul26.csv` → `src/data/ob_pricing_jul2026.js` | 2026-07 |
 
-Le pricing OB Jul26 est intégralement PAYG (plus de frais de réservation), nativement en EUR, avec disponibilité par CSP tracée par bande passante. Pour régénérer ce fichier après une nouvelle extraction tarifaire :
+Le pricing OB Jul26 est intégralement PAYG (plus de frais de réservation), nativement en EUR, avec disponibilité par CSP tracée par bande passante. **Source unique** : ce même fichier alimente à la fois la Heatmap (import ES direct par `App.jsx`) et le Mode Challenger (import par `pricingEngine.js`) — plus de duplication entre les deux vues. La date de génération (`OB_PRICING_META.generatedAt`) est affichée dans le header de l'app. Pour régénérer ce fichier après une nouvelle extraction tarifaire :
 ```bash
-node scripts/convert_ob_pricing.mjs "<chemin CSV>" public/ob_pricing_<label>.js
+node scripts/convert_ob_pricing.mjs "<chemin CSV>" src/data/ob_pricing_<label>.js
 ```
-puis mettre à jour la référence du script dans `index.html`.
+puis mettre à jour l'import dans `App.jsx` et `pricingEngine.js` si le nom de fichier change.
 
 ### Orange Business — Mode Challenger (source interne — EUR)
 | Fichier | Contenu |
 |---|---|
-| `ob_pricing_mar2026.js` | CC par pays / débit / HA / Local |
+| `ob_pricing_jul2026.js` | CC Private par pays / débit (partagé avec la Heatmap, voir ci-dessus) |
 | `vne_pricing_mar2026.js` | VNE hosting + internet par pays / config / terme |
 | `vpnaas_pricing_mar2026.js` | VPNaaS par pays / footprint / ville / débit |
 
@@ -184,6 +184,14 @@ Toutes les devises sources sont converties vers USD ou EUR selon le choix d'affi
 ---
 
 ## 📝 Changelog
+
+### v6.3 (2026-07-16)
+- 🔄 **Pipeline de pricing Cloud Connect unifié** : la Heatmap OB vs CSP et le Mode Challenger partagent désormais une seule source (`src/data/ob_pricing_jul2026.js`, EUR natif, PAYG) — le Challenger tournait jusqu'ici sur des tarifs de mars 2026 obsolètes et une dimension géographique (Local/Regional/Inter-Regional) qui n'existe plus dans le modèle de pricing actuel du produit Cloud Connect (elle subsiste côté Network Connect, un produit différent)
+- ✨ **Fraîcheur des données visible dans l'UI** : le header affiche désormais "Pricing Cloud Connect à jour au JJ/MM/AAAA" (FR/EN), à partir d'une métadonnée `OB_PRICING_META` générée par `convert_ob_pricing.mjs`
+- ✨ **Détecteur de point de bascule Private ↔ Public/IPsec** : pour chaque bande passante, la Heatmap calcule et affiche automatiquement le volume mensuel où le Cloud Connect Public/IPsec devient plus ou moins cher que le Private (architecture Standard/HA précisée), avec l'explication détaillée dans le panneau de détail de cellule
+- ✨ **Passerelle Heatmap → Mode Challenger** : depuis le détail d'une cellule, un bouton "Comparer aussi vs Megaport/Equinix" bascule vers le Mode Challenger en réutilisant le pays, la bande passante et le CSP déjà sélectionnés
+- ✨ **URL partageable** : la configuration de la Heatmap (pays, CSP, région, mode Private/Public, architecture, devise, TCV/durée, volumes personnalisés, coûts client, et la cellule de détail ouverte le cas échéant) est encodée dans l'URL et relue au chargement — un commercial peut envoyer un lien direct plutôt que de redécrire un scénario
+- 🐛 Fix : le Challenger traitait les tarifs Cloud Connect de mars 2026 (en USD) comme s'ils étaient en EUR lors de la conversion d'affichage — corrigé de fait par l'unification de la source de pricing
 
 ### v7.0 (2026-04)
 - ✨ **Mode Challenger** : comparaison OB vs Megaport vs Equinix sur 3 niveaux de résilience

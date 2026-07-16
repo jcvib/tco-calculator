@@ -77,10 +77,12 @@ for (const row of rows) {
 }
 
 const countries = [...countriesSet].sort();
+const sourceFile = csvPath.split(/[\\/]/).pop();
+const generatedAt = new Date().toISOString();
 
 const header = `// Orange Business ODCC Pricing Data
-// Source: ${csvPath.split(/[\\/]/).pop()}
-// Généré le: ${new Date().toISOString()}
+// Source: ${sourceFile}
+// Généré le: ${generatedAt}
 //
 // Structure Private : OB_PRICING_PRIVATE[Country][Bandwidth] -> { hourly_rate_eur, monthly_cost_744h, status: {csp: 'active'|'unavailable'} }
 // Structure Public  : OB_PRICING_PUBLIC[Country][Architecture][Bandwidth] -> idem (Architecture: 'Standard' | 'High Availability')
@@ -90,17 +92,13 @@ const header = `// Orange Business ODCC Pricing Data
 `;
 
 const body = `${header}
-const OB_PRICING_PRIVATE = ${JSON.stringify(OB_PRICING_PRIVATE, null, 2)};
+export const OB_PRICING_META = ${JSON.stringify({ generatedAt, sourceFile }, null, 2)};
 
-const OB_PRICING_PUBLIC = ${JSON.stringify(OB_PRICING_PUBLIC, null, 2)};
+export const OB_PRICING_PRIVATE = ${JSON.stringify(OB_PRICING_PRIVATE, null, 2)};
 
-const OB_COUNTRIES = ${JSON.stringify(countries, null, 2)};
+export const OB_PRICING_PUBLIC = ${JSON.stringify(OB_PRICING_PUBLIC, null, 2)};
 
-if (typeof window !== 'undefined') {
-  window.OB_PRICING_PRIVATE = OB_PRICING_PRIVATE;
-  window.OB_PRICING_PUBLIC = OB_PRICING_PUBLIC;
-  window.OB_COUNTRIES = OB_COUNTRIES;
-}
+export const OB_COUNTRIES = ${JSON.stringify(countries, null, 2)};
 `;
 
 writeFileSync(outPath, body, 'utf-8');

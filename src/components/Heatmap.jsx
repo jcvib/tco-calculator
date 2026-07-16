@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { getCellColor, getTextColor } from '../utils/colors';
 import { getVolumeLabel, parseBandwidth, formatCurrency } from '../utils/formatters';
-import { calculateEgressCost, calculatePrivateCost, calculatePublicIPsecCost, calculateNatGwCost, calculateLinkLoad } from '../utils/calculations';
+import { calculateEgressCost, calculatePrivateCost, calculatePublicIPsecCost, calculateNatGwCost, calculateLinkLoad, findPrivatePublicCrossover } from '../utils/calculations';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export default function Heatmap({
@@ -28,9 +28,17 @@ export default function Heatmap({
   azureErGwConfig,
   obDiscount,
   customVolumes,
-  setCustomVolumes
+  setCustomVolumes,
+  initialCellSelection
 }) {
   const { t } = useLanguage();
+
+  // Libellés du "gagnant" Private/Public pour le point de bascule — la version complète
+  // précise l'architecture Public (Standard/HA) pour éviter toute ambiguïté, la version
+  // courte reste compacte pour l'annotation inline sous la bande passante.
+  const architectureLabel = publicArchitecture === 'Standard' ? t('heatmap.architectureStandard') : t('heatmap.architectureHa');
+  const winnerLabelFull = (winner) => winner === 'public' ? t('heatmap.winnerPublic', { architecture: architectureLabel }) : t('heatmap.winnerPrivate');
+  const winnerLabelShort = (winner) => winner === 'public' ? t('heatmap.winnerPublicShort') : t('heatmap.winnerPrivate');
 
   // "+" inline dans le header
   const [addingVolume, setAddingVolume] = useState(false);
@@ -64,6 +72,28 @@ export default function Heatmap({
     for (const bandwidth of availableBandwidths) {
       const row = { bandwidth, cells: {} };
       const bandwidthMbps = parseBandwidth(bandwidth);
+
+      const egressRegionsForCrossover = selectedCSP === 'AWS' ? awsEgressRegions : azureEgressRegions;
+      row.crossover = findPrivatePublicCrossover({
+        bandwidth,
+        bandwidthMbps,
+        obCountry: selectedCountry,
+        csp: selectedCSP,
+        region: selectedRegion,
+        obPricing: obPricingPrivate,
+        obPricingPublic,
+        architecture: publicArchitecture,
+        egressRegions: egressRegionsForCrossover,
+        awsPortCosts,
+        awsPortCostsJapan,
+        awsPrivateEgress,
+        azurePortCosts,
+        azurePrivateEgress,
+        azureRegionsToZones,
+        azureErGwConfig,
+        obDiscount,
+        includeClientCost
+      });
 
       for (const volumeTiB of VOLUMES_TIB) {
         const volumeGiB = volumeTiB * 1024;
@@ -164,6 +194,109 @@ export default function Heatmap({
     VOLUMES_TIB
   ]);
 
+  // Construit le payload transmis au panneau de détail (CellDetailsFlat) — extrait pour être
+  // réutilisé à la fois par le clic manuel sur une cellule et par la réouverture automatique
+  // d'une cellule depuis un lien partagé (voir effet ci-dessous).
+  function buildCellPayload(row, vol, cell) {
+    return {
+      // Infos de base
+      ccMode,
+      bandwidth: row.bandwidth,
+      totalVolume: vol,
+      volumeTiB: cell.volumeTiB,
+      volumeGiB: cell.volumeGiB,
+
+      // Egress Internet (baseline)
+      totalEgress: cell.egressCost,
+      natGwBaselineCost: cell.egressCostData?.natGwCost || 0,
+      natGwBaselineDetail: cell.egressCostData?.natGwDetail || null,
+      internetEgressTiers: cell.egressCostData?.tiers?.map(t => ({
+        label: `${t.min.toFixed(0)}-${t.max === Infinity ? '∞' : t.max.toFixed(0)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
+        cost: t.cost
+      })) || [],
+      regionName: selectedRegion,
+
+      // OB (coûts originaux)
+      obCost: cell.privateCost?.obCost || 0,
+      obReservedBW: ccMode === 'public' ? '0 (PAYG)' : `${cell.privateCost?.obReservedBW || 0} — PAYG`,
+      obUsage: `${cell.volumeTiB} TiB`,
+      obReservedBWCost: cell.privateCost?.obReservedBW || 0,
+      obUsageCost: cell.privateCost?.obUsageCost ?? cell.privateCost?.obCost ?? 0,
+      obHours: cell.privateCost?.obHours || 744,
+      obCountry: selectedCountry,
+      obArchitecture: ccMode === 'public' ? publicArchitecture : 'High Availability',
+      obAvailable: ccMode === 'public' ? (cell.privateCost?.available ?? true) : true,
+
+      // OB avec remise
+      obCostWithDiscount: cell.privateCost?.obCostWithDiscount || cell.privateCost?.obCost || 0,
+      obDiscount: cell.privateCost?.obDiscount || 0,
+
+      // Private uniquement : Port CSP (pas de remise CSP)
+      cspPortCost: cell.privateCost?.cspPortCost || 0,
+      cspPortRate: cell.privateCost?.portCostPerHour || 0,
+      cspHoursPerMonth: cell.privateCost?.monthlyHours || 730,
+      cspCircuitCount: cell.privateCost?.numCircuits || 2,
+
+      // Private uniquement : ErGw Azure
+      erGwCost: cell.privateCost?.erGwCost || 0,
+      erGwScaleUnits: cell.privateCost?.erGwScaleUnits || 0,
+      erGwCostPerUnit: cell.privateCost?.erGwCostPerHour || 0,
+
+      // Private uniquement : Egress privé DX/ExpressRoute
+      privateEgressCost: cell.privateCost?.privateEgressCost || 0,
+      privateEgressRate: cell.privateCost?.privateEgressRate || 0,
+      privateEgressVolume: `${(cell.privateCost?.volumeForEgress || 0).toFixed(2)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
+
+      // Public/IPsec uniquement : egress Internet côté CSP + coûts client
+      cspEgressCost: cell.privateCost?.cspEgressCost || 0,
+      cspEgressTiers: cell.privateCost?.cspEgressTiers?.map(t => ({
+        label: `${t.min.toFixed(0)}-${t.max === Infinity ? '∞' : t.max.toFixed(0)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
+        cost: t.cost
+      })) || [],
+      natGwCost: cell.privateCost?.natGwCost || 0,
+      natGwDetail: cell.privateCost?.natGwDetail || null,
+      ipsecCpeCost: cell.privateCost?.ipsecCpeCost || 0,
+
+      // Totaux avec/sans remise
+      totalPrivate: cell.privateCost?.total || 0,
+      totalWithDiscount: cell.privateCost?.totalWithDiscount || cell.privateCost?.total || 0,
+      totalWithoutDiscount: cell.privateCost?.totalWithoutDiscount || cell.privateCost?.total || 0,
+
+      // Économies
+      savingsAmount: cell.savings,
+      savingsPercent: cell.savingsPercent,
+
+      // Link Load
+      linkLoadPercent: cell.linkLoad?.loadPercent || 0,
+      volumeDemanded: `${cell.volumeTiB} TiB`,
+      capacityMonthly: `${cell.linkLoad?.capacityTiB?.toFixed(2) || 0} TiB`,
+      chargeTheoric: `${cell.linkLoad?.loadPercent?.toFixed(1) || 0}%`,
+
+      // Point de bascule Private ↔ Public/IPsec (calculé par bande passante, indépendant du ccMode affiché)
+      crossoverVolumeTiB: row.crossover?.crossoverVolumeTiB ?? null,
+      crossoverWinnerBelow: row.crossover?.winnerBelow ?? null,
+      crossoverWinnerAbove: row.crossover?.winnerAbove ?? null,
+      crossoverReason: row.crossover?.reason ?? null,
+      crossoverConstantWinner: row.crossover?.constantWinner ?? null,
+      crossoverPublicArchitecture: publicArchitecture
+    };
+  }
+
+  // Réouvre automatiquement la cellule référencée par un lien partagé (une fois les données
+  // prêtes). Ne s'exécute qu'une seule fois — un ref évite de rouvrir la cellule si
+  // l'utilisateur la ferme ensuite alors que heatmapData se recalcule pour d'autres raisons.
+  const appliedInitialCell = useRef(false);
+  useEffect(() => {
+    if (appliedInitialCell.current || !initialCellSelection) return;
+    const row = heatmapData.find(r => r.bandwidth === initialCellSelection.bandwidth);
+    if (!row) return;
+    const volLabel = volumeHeaders.find(vol => row.cells[vol]?.volumeTiB === initialCellSelection.volumeTiB);
+    if (volLabel && row.cells[volLabel]) {
+      setSelectedCell(buildCellPayload(row, volLabel, row.cells[volLabel]));
+      appliedInitialCell.current = true;
+    }
+  }, [heatmapData, volumeHeaders, initialCellSelection]);
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-start justify-between gap-6 mb-4 flex-wrap">
@@ -247,7 +380,33 @@ export default function Heatmap({
         <tbody>
           {heatmapData.map(row => (
             <tr key={row.bandwidth}>
-              <td className="bandwidth-cell">{row.bandwidth}</td>
+              <td className="bandwidth-cell">
+                {row.bandwidth}
+                {row.crossover?.crossoverVolumeTiB != null && (
+                  <div
+                    className="text-[10px] font-normal text-graphite-400 mt-0.5"
+                    title={t('heatmap.crossoverTooltip', {
+                      volume: row.crossover.crossoverVolumeTiB.toFixed(1),
+                      winnerBelow: winnerLabelFull(row.crossover.winnerBelow),
+                      winnerAbove: winnerLabelFull(row.crossover.winnerAbove)
+                    })}
+                  >
+                    {t('heatmap.crossoverBadge', { volume: row.crossover.crossoverVolumeTiB.toFixed(1) })}
+                  </div>
+                )}
+                {row.crossover?.reason === 'no-crossover' && (
+                  <div
+                    className="text-[10px] font-normal text-graphite-400 mt-0.5"
+                    title={t('heatmap.crossoverConstantTooltip', {
+                      winner: winnerLabelFull(row.crossover.constantWinner)
+                    })}
+                  >
+                    {t('heatmap.crossoverConstantBadge', {
+                      winner: winnerLabelShort(row.crossover.constantWinner)
+                    })}
+                  </div>
+                )}
+              </td>
               {volumeHeaders.map(vol => {
                 const cell = row.cells[vol];
 
@@ -276,80 +435,7 @@ export default function Heatmap({
                       color: textColor,
                       opacity: isOverThreshold ? 0.5 : 1
                     }}
-                    onClick={() => setSelectedCell({
-                      // Infos de base
-                      ccMode,
-                      bandwidth: row.bandwidth,
-                      totalVolume: vol,
-                      volumeTiB: cell.volumeTiB,
-                      volumeGiB: cell.volumeGiB,
-
-                      // Egress Internet (baseline)
-                      totalEgress: cell.egressCost,
-                      natGwBaselineCost: cell.egressCostData?.natGwCost || 0,
-                      natGwBaselineDetail: cell.egressCostData?.natGwDetail || null,
-                      internetEgressTiers: cell.egressCostData?.tiers?.map(t => ({
-                        label: `${t.min.toFixed(0)}-${t.max === Infinity ? '∞' : t.max.toFixed(0)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
-                        cost: t.cost
-                      })) || [],
-                      regionName: selectedRegion,
-
-                      // OB (coûts originaux)
-                      obCost: cell.privateCost?.obCost || 0,
-                      obReservedBW: ccMode === 'public' ? '0 (PAYG)' : `${cell.privateCost?.obReservedBW || 0} — PAYG`,
-                      obUsage: `${cell.volumeTiB} TiB`,
-                      obReservedBWCost: cell.privateCost?.obReservedBW || 0,
-                      obUsageCost: cell.privateCost?.obUsageCost ?? cell.privateCost?.obCost ?? 0,
-                      obHours: cell.privateCost?.obHours || 744,
-                      obCountry: selectedCountry,
-                      obArchitecture: ccMode === 'public' ? publicArchitecture : 'High Availability',
-                      obAvailable: ccMode === 'public' ? (cell.privateCost?.available ?? true) : true,
-
-                      // OB avec remise
-                      obCostWithDiscount: cell.privateCost?.obCostWithDiscount || cell.privateCost?.obCost || 0,
-                      obDiscount: cell.privateCost?.obDiscount || 0,
-
-                      // Private uniquement : Port CSP (pas de remise CSP)
-                      cspPortCost: cell.privateCost?.cspPortCost || 0,
-                      cspPortRate: cell.privateCost?.portCostPerHour || 0,
-                      cspHoursPerMonth: cell.privateCost?.monthlyHours || 730,
-                      cspCircuitCount: cell.privateCost?.numCircuits || 2,
-
-                      // Private uniquement : ErGw Azure
-                      erGwCost: cell.privateCost?.erGwCost || 0,
-                      erGwScaleUnits: cell.privateCost?.erGwScaleUnits || 0,
-                      erGwCostPerUnit: cell.privateCost?.erGwCostPerHour || 0,
-
-                      // Private uniquement : Egress privé DX/ExpressRoute
-                      privateEgressCost: cell.privateCost?.privateEgressCost || 0,
-                      privateEgressRate: cell.privateCost?.privateEgressRate || 0,
-                      privateEgressVolume: `${(cell.privateCost?.volumeForEgress || 0).toFixed(2)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
-
-                      // Public/IPsec uniquement : egress Internet côté CSP + coûts client
-                      cspEgressCost: cell.privateCost?.cspEgressCost || 0,
-                      cspEgressTiers: cell.privateCost?.cspEgressTiers?.map(t => ({
-                        label: `${t.min.toFixed(0)}-${t.max === Infinity ? '∞' : t.max.toFixed(0)} ${selectedCSP === 'AWS' ? 'GiB' : 'GB'}`,
-                        cost: t.cost
-                      })) || [],
-                      natGwCost: cell.privateCost?.natGwCost || 0,
-                      natGwDetail: cell.privateCost?.natGwDetail || null,
-                      ipsecCpeCost: cell.privateCost?.ipsecCpeCost || 0,
-
-                      // Totaux avec/sans remise
-                      totalPrivate: cell.privateCost?.total || 0,
-                      totalWithDiscount: cell.privateCost?.totalWithDiscount || cell.privateCost?.total || 0,
-                      totalWithoutDiscount: cell.privateCost?.totalWithoutDiscount || cell.privateCost?.total || 0,
-
-                      // Économies
-                      savingsAmount: cell.savings,
-                      savingsPercent: cell.savingsPercent,
-
-                      // Link Load
-                      linkLoadPercent: cell.linkLoad?.loadPercent || 0,
-                      volumeDemanded: `${cell.volumeTiB} TiB`,
-                      capacityMonthly: `${cell.linkLoad?.capacityTiB?.toFixed(2) || 0} TiB`,
-                      chargeTheoric: `${cell.linkLoad?.loadPercent?.toFixed(1) || 0}%`
-                    })}
+                    onClick={() => setSelectedCell(buildCellPayload(row, vol, cell))}
                     title={`${t('heatmap.clickForDetails', { load: cell.linkLoad.loadPercent.toFixed(0) })}${ccMode === 'public' && !cell.privateCost?.available ? t('heatmap.notAvailableSuffix') : ''}`}
                   >
                     <div className="text-lg font-bold">

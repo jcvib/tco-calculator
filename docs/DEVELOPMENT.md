@@ -5,10 +5,11 @@
 ```
 src/
 ├── components/
-│   ├── Header.jsx              En-tête de l'application
+│   ├── Header.jsx              En-tête de l'application + fraîcheur du pricing
 │   ├── Controls.jsx            Filtres heatmap historique
 │   ├── ViewSelector.jsx        Navigation Heatmap ↔ Mode Challenger
-│   ├── Heatmap.jsx             Heatmap OB vs CSP (existante — ne pas modifier)
+│   ├── Heatmap.jsx             Heatmap OB vs CSP + détecteur de point de bascule Private/Public
+│   ├── CellDetails/            Panneau de détail d'une cellule (graphes, breakdown, charge du lien, bascule)
 │   └── Challenger/             Module Mode Challenger (v7.0)
 │       ├── ChallengerView.jsx
 │       ├── ChallengerForm.jsx
@@ -20,8 +21,10 @@ src/
 │   ├── stackComposer.js
 │   ├── currencyUtils.js
 │   └── narrativeGenerator.js
+├── hooks/
+│   └── useUrlState.js          Lecture/écriture de la config Heatmap dans les query params (lien partageable)
 ├── data/                       Données statiques (ES modules)
-│   ├── ob_pricing_mar2026.js
+│   ├── ob_pricing_jul2026.js         OB Cloud Connect (Private + Public/IPsec) — source unique Heatmap + Challenger
 │   ├── vne_pricing_mar2026.js
 │   ├── vpnaas_pricing_mar2026.js
 │   ├── megaport_pricing_mar2026.js   → megaport_pricing_20260403.json
@@ -148,7 +151,12 @@ Pour ajouter un cas d'usage : ajouter une entrée dans `useCases.json`, les comp
 2. Mettre à jour le `import` dans `equinix_pricing_mar2026.js`
 3. Structure attendue : `services.ports.data`, `services.fabric_cloud_sp.data`, `services.cloud_router.data`
 
-**OB (CC, VNE, VPNaaS) :**
+**OB Cloud Connect (`ob_pricing_jul2026.js`, partagé Heatmap + Challenger) :**
+- Régénérer via `node scripts/convert_ob_pricing.mjs "<export CSV ODCC>" src/data/ob_pricing_<label>.js` — écrit `OB_PRICING_PRIVATE`, `OB_PRICING_PUBLIC`, `OB_COUNTRIES` et `OB_PRICING_META` (date + fichier source, affichée dans le header)
+- Mettre à jour l'import dans `App.jsx` et `pricingEngine.js` si le nom de fichier change
+- Tous les montants sont en **EUR**
+
+**OB VNE / VPNaaS :**
 - Modifier directement les fichiers `.js` (données statiques inline)
 - Tous les montants sont en **EUR**
 - Le wrapper `toDisplay(montant, 'EUR')` gère la conversion à l'affichage
@@ -179,6 +187,23 @@ Le hook `t(path)` utilise la notation pointée. Si une clé est absente, il reto
 1. Ajouter une clé de niveau dans `translations.js` (ex. `es: { ... }`)
 2. Ajouter le bouton dans le composant `LangSwitch` dans `App.jsx`
 3. Le `LanguageContext` est générique — aucune autre modification nécessaire
+
+---
+
+## Composants Heatmap OB vs CSP (ajouts v6.3)
+
+### Détecteur de point de bascule Private ↔ Public/IPsec
+`findPrivatePublicCrossover()` dans `src/utils/calculations.js` : à bande passante fixée, cherche par bissection le volume où `calculatePrivateCost` et `calculatePublicIPsecCost` s'égalisent, borné à la capacité théorique du lien (`getMonthlyCapacityTiB`). Retourne soit un volume de croisement avec le gagnant en dessous/au-dessus, soit `reason: 'no-crossover'` avec un gagnant constant si les deux courbes ne se croisent pas dans la plage exploitable.
+
+Affiché dans `Heatmap.jsx` (annotation compacte sous chaque bande passante, calculée une fois par ligne) et détaillé dans `CellDetails/LinkAnalysisFlat.jsx` (phrase complète, architecture Public précisée pour éviter toute ambiguïté).
+
+### `useUrlState.js` (`src/hooks/`)
+`readUrlState()` parse les query params au chargement (retourne des valeurs `undefined` si absentes/invalides — chaque `useState` dans `App.jsx` applique son propre défaut via `??`). `useSyncUrlState(state)` réécrit l'URL via `history.replaceState` à chaque changement de state (pas de nouvelle entrée d'historique). Si une cellule de détail est ouverte, sa bande passante/volume sont aussi encodés (`cellbw`/`cellvol`) et rouverts automatiquement au chargement une fois `heatmapData` disponible (voir l'effet dans `Heatmap.jsx`, gardé par un `useRef` pour ne s'exécuter qu'une fois).
+
+Ne couvre que la Heatmap OB vs CSP — le Mode Challenger n'est pas concerné (seul `view=challenger` est encodé pour rouvrir le bon onglet).
+
+### Passerelle vers le Mode Challenger
+Depuis `CellDetailsFlat` (`indexFlat.jsx`), le bouton "Comparer aussi vs Megaport/Equinix" appelle `onCompareVsDiy({ country, bandwidth })` (géré dans `App.jsx`), qui arrondit la bande passante à la plus proche valeur `CHALLENGER_BANDWIDTHS` et pose `challengerInitialContext`. `ChallengerView` reçoit ce contexte en prop et remonte `ChallengerForm` (via une `key` dérivée du contexte) pour le pré-remplir — pas d'auto-calcul, l'utilisateur ajuste et lance lui-même.
 
 ---
 

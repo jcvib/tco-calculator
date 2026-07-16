@@ -7,7 +7,13 @@ export default function LinkAnalysisFlat({ selectedCell, capacityThreshold }) {
     linkLoadPercent = 0,
     volumeDemanded = 'N/A',
     capacityMonthly = 'N/A',
-    chargeTheoric = 'N/A'
+    chargeTheoric = 'N/A',
+    crossoverVolumeTiB = null,
+    crossoverWinnerBelow = null,
+    crossoverWinnerAbove = null,
+    crossoverReason = null,
+    crossoverConstantWinner = null,
+    crossoverPublicArchitecture = 'High Availability'
   } = selectedCell || {};
 
   const isComfortable = linkLoadPercent <= capacityThreshold;
@@ -15,6 +21,10 @@ export default function LinkAnalysisFlat({ selectedCell, capacityThreshold }) {
   const barColor = isComfortable ? 'bg-malachite-500' : 'bg-amber-500';
   const bgColor = isComfortable ? 'bg-malachite-50' : 'bg-amber-50';
   const borderColor = isComfortable ? 'border-malachite-200' : 'border-amber-200';
+
+  // Libellé Public précisant l'architecture (Standard/HA) pour éviter toute ambiguïté
+  const architectureLabel = crossoverPublicArchitecture === 'Standard' ? t('heatmap.architectureStandard') : t('heatmap.architectureHa');
+  const winnerLabel = (winner) => winner === 'public' ? t('heatmap.winnerPublic', { architecture: architectureLabel }) : t('heatmap.winnerPrivate');
 
   return (
     <div className={`${bgColor} ${borderColor} border rounded-lg p-4`}>
@@ -63,6 +73,27 @@ export default function LinkAnalysisFlat({ selectedCell, capacityThreshold }) {
             )}
           </div>
         </div>
+
+        {crossoverVolumeTiB != null && (
+          <div className="pt-3 border-t border-graphite-200">
+            <span className="text-graphite-700 font-medium">{t('linkAnalysis.crossoverTitle')}</span>
+            <p className="mt-1 text-xs text-graphite-500">
+              {t('linkAnalysis.crossoverExplain', {
+                volume: crossoverVolumeTiB.toFixed(1),
+                winnerBelow: winnerLabel(crossoverWinnerBelow),
+                winnerAbove: winnerLabel(crossoverWinnerAbove)
+              })}
+            </p>
+          </div>
+        )}
+        {crossoverReason === 'no-crossover' && (
+          <div className="pt-3 border-t border-graphite-200">
+            <span className="text-graphite-700 font-medium">{t('linkAnalysis.crossoverTitle')}</span>
+            <p className="mt-1 text-xs text-graphite-500">
+              {t('linkAnalysis.crossoverConstantExplain', { winner: winnerLabel(crossoverConstantWinner) })}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

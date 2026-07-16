@@ -1,10 +1,10 @@
 export const TRANSLATIONS = {
   fr: {
     app: {
-      // Heatmap OB vs CSP (v6.2)
+      // Heatmap OB vs CSP (v6.3)
       loadingTitle: 'Chargement des données de pricing...',
       loadingSubtitle: 'Transformation en cours...',
-      footerCopyright: '© 2026 Orange Business - v6.2',
+      footerCopyright: '© 2026 Orange Business - v6.3',
       footerStats: '{countries} pays | {bandwidths} bandes passantes',
       footerDiscount: '| Remise OB {discount}%',
       // Shell applicatif (Mode Challenger, v7.0)
@@ -14,9 +14,10 @@ export const TRANSLATIONS = {
     },
     header: {
       title: 'Cloud Connectivity TCO Calculator',
-      tagline: 'Orange Business · v6.2',
+      tagline: 'Orange Business · v6.3',
       methodologyLabel: 'Méthodologie',
       methodologyText: 'Comparaison des coûts mensuels entre la connectivité Orange Business (Cloud Connect + {csp}) et l\'egress Internet standard.',
+      pricingFreshness: 'Pricing Cloud Connect à jour au {date}',
     },
     viewSelector: {
       heatmap: 'Heatmap',
@@ -74,7 +75,7 @@ export const TRANSLATIONS = {
       ipsecCpeAssumptionNote: 'Estimation, pas de tarif public de référence — à ajuster selon le device réel du client',
     },
     heatmap: {
-      // Heatmap OB vs CSP (v6.2)
+      // Heatmap OB vs CSP (v6.3)
       title: 'Économies ou surcoûts Orange Business',
       subtitle: 'Cloud Connect {mode} vs egress Internet direct {csp}',
       modePrivate: 'Private',
@@ -92,6 +93,13 @@ export const TRANSLATIONS = {
       clickForDetails: 'Cliquer pour voir les détails | Charge: {load}%',
       notAvailableSuffix: ' | ⚠️ Non disponible sur ce CSP',
       notAvailableTitle: 'Non disponible sur ce CSP à ce jour',
+      crossoverBadge: '⇄ {volume} TiB',
+      crossoverTooltip: 'En dessous de {volume} TiB/mois : {winnerBelow} moins cher. Au-dessus : {winnerAbove} moins cher. (Pays/CSP actuellement sélectionnés.)',
+      crossoverConstantBadge: '{winner} toujours',
+      crossoverConstantTooltip: '{winner} moins cher sur toute la plage de volume exploitable pour ce débit (pas de croisement Private/Public).',
+      winnerPrivate: 'Private',
+      winnerPublicShort: 'Public/IPsec',
+      winnerPublic: 'Public/IPsec ({architecture})',
       // Heatmap compétitive Mode Challenger (v7.0)
       cas_label: 'Cas',
       context_label: 'Contexte',
@@ -187,10 +195,14 @@ export const TRANSLATIONS = {
       linkLoad: 'Charge du lien:',
       comfortableMargin: '✅ Marge confortable pour absorber les pics',
       adjustBandwidth: '⚠️ Ajuster la bande passante pour les pics',
+      crossoverTitle: '⇄ Point de bascule Private / Public-IPsec',
+      crossoverExplain: 'En dessous de {volume} TiB/mois, {winnerBelow} est moins cher. Au-dessus, {winnerAbove} est moins cher (à bande passante, pays, CSP et remise identiques).',
+      crossoverConstantExplain: '{winner} reste moins cher sur toute la plage de volume exploitable pour cette bande passante.',
     },
     cellDetails: {
       modalTitle: 'Détail des Calculs - {bandwidth} / {volume}',
       close: 'Fermer',
+      compareVsDiy: 'Comparer aussi vs Megaport/Equinix →',
     },
     challenger: {
       title: '⚔️ Mode Challenger',
@@ -263,7 +275,7 @@ export const TRANSLATIONS = {
     app: {
       loadingTitle: 'Loading pricing data...',
       loadingSubtitle: 'Processing...',
-      footerCopyright: '© 2026 Orange Business - v6.2',
+      footerCopyright: '© 2026 Orange Business - v6.3',
       footerStats: '{countries} countries | {bandwidths} bandwidths',
       footerDiscount: '| OB discount {discount}%',
       title: 'TCO Calculator · Orange Business',
@@ -272,9 +284,10 @@ export const TRANSLATIONS = {
     },
     header: {
       title: 'Cloud Connectivity TCO Calculator',
-      tagline: 'Orange Business · v6.2',
+      tagline: 'Orange Business · v6.3',
       methodologyLabel: 'Methodology',
       methodologyText: 'Comparison of monthly costs between Orange Business connectivity (Cloud Connect + {csp}) and standard Internet egress.',
+      pricingFreshness: 'Cloud Connect pricing as of {date}',
     },
     viewSelector: {
       heatmap: 'Heatmap',
@@ -349,6 +362,13 @@ export const TRANSLATIONS = {
       clickForDetails: 'Click for details | Load: {load}%',
       notAvailableSuffix: ' | ⚠️ Not available on this CSP',
       notAvailableTitle: 'Not available on this CSP yet',
+      crossoverBadge: '⇄ {volume} TiB',
+      crossoverTooltip: 'Below {volume} TiB/month: {winnerBelow} is cheaper. Above: {winnerAbove} is cheaper. (Currently selected country/CSP.)',
+      crossoverConstantBadge: '{winner} always',
+      crossoverConstantTooltip: '{winner} is cheaper across the entire usable volume range for this bandwidth (no Private/Public crossover).',
+      winnerPrivate: 'Private',
+      winnerPublicShort: 'Public/IPsec',
+      winnerPublic: 'Public/IPsec ({architecture})',
       cas_label: 'Case',
       context_label: 'Context',
       resilience_label: 'Resilience',
@@ -443,10 +463,14 @@ export const TRANSLATIONS = {
       linkLoad: 'Link load:',
       comfortableMargin: '✅ Comfortable margin to absorb peaks',
       adjustBandwidth: '⚠️ Adjust bandwidth for peak traffic',
+      crossoverTitle: '⇄ Private / Public-IPsec break-even point',
+      crossoverExplain: 'Below {volume} TiB/month, {winnerBelow} is cheaper. Above, {winnerAbove} is cheaper (same bandwidth, country, CSP and discount).',
+      crossoverConstantExplain: '{winner} stays cheaper across the entire usable volume range for this bandwidth.',
     },
     cellDetails: {
       modalTitle: 'Calculation Detail - {bandwidth} / {volume}',
       close: 'Close',
+      compareVsDiy: 'Also compare vs Megaport/Equinix →',
     },
     challenger: {
       title: '⚔️ Challenger Mode',

@@ -2,9 +2,11 @@
 
 Priorisé avec Jean-Charles le 2026-07-08, à l'issue de la session v6.2 (Public/IPsec, remise EVP, i18n, redesign, merge avec le Mode Challenger v7.0). Ordre = priorité.
 
+**✅ Statut (2026-07-16) : les 5 items ont été traités en session, livrés dans v6.3 — voir le changelog du [README](../README.md#-changelog) et le détail dans [DEVELOPMENT.md](./DEVELOPMENT.md#composants-heatmap-ob-vs-csp-ajouts-v63). Conservé ci-dessous comme historique de la décision (notamment le point de décision de l'item 1, tranché en (a)).**
+
 ---
 
-## 1 — Unifier le pipeline de pricing Cloud Connect (Heatmap + Challenger)
+## 1 — Unifier le pipeline de pricing Cloud Connect (Heatmap + Challenger) ✅
 
 **Constat** : les deux modes ne partagent aucune donnée OB malgré des noms de fichiers proches.
 - Heatmap OB vs CSP → `public/ob_pricing_jul2026.js`, généré par `scripts/convert_ob_pricing.mjs` depuis `ODCCpricingJul26.csv`. EUR natif, PAYG pur, couvre Private **et** Public/IPsec, disponibilité par CSP.
@@ -18,11 +20,13 @@ Priorisé avec Jean-Charles le 2026-07-08, à l'issue de la session v6.2 (Public
 
 Recommandation : (a), mais à valider — ça touche `pricingEngine.js` qui n'a pas été audité en détail cette session.
 
+**Tranché en session : option (a).** `pricingEngine.js` consomme directement `OB_PRICING_PRIVATE[country][bwKey]` depuis `src/data/ob_pricing_jul2026.js`, sans dimension géo (confirmée absente aussi côté Heatmap). Fichiers `public/ob_pricing_jul2026.js` (ancien format `window.X`) et `src/data/ob_pricing_mar2026.js` supprimés.
+
 **Hors périmètre** : VNE (`vne_pricing_mar2026.js`) et VPNaaS (`vpnaas_pricing_mar2026.js`) restent sur les données de mars — ce sont des produits différents, absents du CSV ODCC de juillet.
 
 ---
 
-## 2 — Fraîcheur des données visible dans l'UI
+## 2 — Fraîcheur des données visible dans l'UI ✅
 
 Afficher "Pricing à jour au JJ/MM/AAAA" dans les deux modes, pas seulement dans un numéro de version. Idéalement :
 - Étendre `scripts/convert_ob_pricing.mjs` pour écrire une métadonnée exploitable (ex. `OB_PRICING_META = { generatedAt, sourceFile }`) dans le fichier généré, plutôt que hardcoder une date dans les composants.
@@ -32,7 +36,7 @@ Motivation de Jean-Charles : la transparence sur la fraîcheur des données va �
 
 ---
 
-## 3 — Détecteur de point de bascule Private ↔ Public/IPsec
+## 3 — Détecteur de point de bascule Private ↔ Public/IPsec ✅
 
 Pour un pays donné, calculer et afficher automatiquement le volume/débit où le Cloud Connect Public/IPsec devient moins cher que le Private (ou vice-versa), plutôt que de laisser l'utilisateur scanner la heatmap à l'œil.
 
@@ -42,7 +46,7 @@ C'est la suite directe du retour marketing (Marion/Emmanuel) sur la compétitivi
 
 ---
 
-## 4 — Passerelle entre les deux modes
+## 4 — Passerelle entre les deux modes ✅
 
 Depuis la Heatmap OB vs CSP, un lien/bouton "Comparer aussi vs Megaport/Equinix" qui bascule vers le Mode Challenger en réutilisant le pays et la bande passante déjà sélectionnés (mapping vers le cas d'usage le plus proche, probablement Cas A — on-ramp simple).
 
@@ -50,7 +54,7 @@ Depuis la Heatmap OB vs CSP, un lien/bouton "Comparer aussi vs Megaport/Equinix"
 
 ---
 
-## 5 — URL partageable
+## 5 — URL partageable ✅
 
 Encoder la configuration courante (pays, CSP, mode Private/Public, bande passante, volume, TCV/durée, devise, viewMode) dans les query params de l'URL, synchronisée à chaque changement et relue au chargement. Permet à un commercial d'envoyer un lien direct plutôt que de redécrire tout un scénario.
 

@@ -22,16 +22,16 @@ const FOOTPRINT_OPTIONS = ['Local', 'Regional', 'Global']
 
 const USE_CASES = getUseCases()
 
-export default function ChallengerForm({ onCalculate }) {
+export default function ChallengerForm({ onCalculate, initialContext }) {
   const { t, lang } = useLanguage()
 
   const [context,          setContext]          = useState('mpls')
-  const [country,          setCountry]          = useState('France')
+  const [country,          setCountry]          = useState(initialContext?.country ?? 'France')
   const [vpnaasFootprint,  setVpnaasFootprint]  = useState('Local')
   const [usecaseId,        setUsecaseId]        = useState('A')
-  const [csps,             setCsps]             = useState(['aws'])
+  const [csps,             setCsps]             = useState(initialContext?.csp ? [initialContext.csp] : ['aws'])
   const [mDcs,             setMDcs]             = useState(2)
-  const [bandwidthMbps,    setBandwidthMbps]    = useState(500)
+  const [bandwidthMbps,    setBandwidthMbps]    = useState(initialContext?.bandwidthMbps ?? 500)
   const [termMonths,       setTermMonths]       = useState(12)
   const [vneConfig,        setVneConfig]        = useState(DEFAULT_VNE_CONFIG)
   const [showAdvanced,     setShowAdvanced]     = useState(false)

@@ -232,17 +232,66 @@ export function calculatePublicIPsecCost(params) {
   };
 }
 
+const MBPS_TO_TIB_MONTH = (1e6 * 730 * 3600) / (8 * Math.pow(1024, 4));
+
+export function getMonthlyCapacityTiB(bandwidthMbps) {
+  return bandwidthMbps * MBPS_TO_TIB_MONTH;
+}
+
 /**
  * Calcule la charge du lien
  */
 export function calculateLinkLoad(volumeTiB, bandwidthMbps, threshold) {
-  const MBPS_TO_TIB_MONTH = (1e6 * 730 * 3600) / (8 * Math.pow(1024, 4));
-  const monthlyCapacityTiB = bandwidthMbps * MBPS_TO_TIB_MONTH;
+  const monthlyCapacityTiB = getMonthlyCapacityTiB(bandwidthMbps);
   const loadPercent = (volumeTiB / monthlyCapacityTiB) * 100;
 
   return {
     capacityTiB: monthlyCapacityTiB,
     loadPercent: loadPercent,
     isOverThreshold: loadPercent > threshold
+  };
+}
+
+/**
+ * Point de bascule Private ↔ Public/IPsec, à bande passante fixée.
+ * Balaie l'axe volume (borné à la capacité théorique du lien) et cherche le
+ * croisement entre calculatePrivateCost et calculatePublicIPsecCost par bissection —
+ * les deux courbes sont monotones croissantes en volume, donc un seul croisement
+ * est attendu dans la plage exploitable.
+ */
+export function findPrivatePublicCrossover(params) {
+  const { bandwidth, bandwidthMbps } = params;
+  const maxVolumeGiB = getMonthlyCapacityTiB(bandwidthMbps) * 1024 * 0.999;
+
+  const diff = (volumeGiB) => {
+    const priv = calculatePrivateCost({ ...params, bandwidth, volumeGiB });
+    const pub = calculatePublicIPsecCost({ ...params, bandwidth, volumeGiB });
+    if (!priv || !pub) return null;
+    return priv.total - pub.total; // > 0 : Private plus cher (Public gagne) ; < 0 : Private gagne
+  };
+
+  const dLow = diff(0);
+  const dHigh = diff(maxVolumeGiB);
+  if (dLow == null || dHigh == null) return { crossoverVolumeTiB: null, reason: 'missing-data' };
+
+  const winnerOf = (d) => (d > 0 ? 'public' : 'private');
+
+  if (Math.sign(dLow) === Math.sign(dHigh) || dLow === 0) {
+    return { crossoverVolumeTiB: null, reason: 'no-crossover', constantWinner: winnerOf(dHigh) };
+  }
+
+  let lo = 0, hi = maxVolumeGiB, dLo = dLow;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    const dMid = diff(mid);
+    if (dMid == null) break;
+    if (Math.sign(dMid) === Math.sign(dLo)) { lo = mid; dLo = dMid; } else { hi = mid; }
+  }
+
+  const crossoverVolumeGiB = (lo + hi) / 2;
+  return {
+    crossoverVolumeTiB: crossoverVolumeGiB / 1024,
+    winnerBelow: winnerOf(dLow),
+    winnerAbove: winnerOf(dHigh),
   };
 }

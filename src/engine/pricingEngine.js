@@ -1,8 +1,8 @@
-import { OB_PRICING }       from '../data/ob_pricing_mar2026.js'
-import { VNE_PRICING }      from '../data/vne_pricing_mar2026.js'
-import { VPNAAS_PRICING }   from '../data/vpnaas_pricing_mar2026.js'
-import { MEGAPORT_PRICING } from '../data/megaport_pricing_mar2026.js'
-import { EQUINIX_PRICING }  from '../data/equinix_pricing_mar2026.js'
+import { OB_PRICING_PRIVATE } from '../data/ob_pricing_jul2026.js'
+import { VNE_PRICING }        from '../data/vne_pricing_mar2026.js'
+import { VPNAAS_PRICING }     from '../data/vpnaas_pricing_mar2026.js'
+import { MEGAPORT_PRICING }   from '../data/megaport_pricing_mar2026.js'
+import { EQUINIX_PRICING }    from '../data/equinix_pricing_mar2026.js'
 import {
   COUNTRY_TO_MEGAPORT, COUNTRY_TO_EQUINIX_METRO, DEFAULT_VNE_CONFIG
 } from '../data/geoMappings.js'
@@ -102,9 +102,9 @@ function calcOB(stack, params) {
   // OB pricing is always in EUR — wrap every amount with toDisplay(value, 'EUR')
   // CC
   const bwKey  = nearestOBBandwidth(bandwidth_mbps)
-  const ccData = OB_PRICING[country]?.['High Availability']?.['Local']?.[bwKey]
+  const ccData = OB_PRICING_PRIVATE[country]?.[bwKey]
   if (!ccData) {
-    missing.push(`OB CC: prix manquant pour ${country} / Local / ${bwKey}`)
+    missing.push(`OB CC: prix manquant pour ${country} / ${bwKey}`)
   } else {
     const unit = toDisplay(ccData.monthly_cost_744h, 'EUR')
     const qty  = stack.cc ?? 0

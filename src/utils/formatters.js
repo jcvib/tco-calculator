@@ -83,6 +83,14 @@ export function getDisplayedVolume(volumeGiB, unit, csp) {
   };
 }
 
+export function formatDate(isoString, lang) {
+  if (!isoString) return '—';
+  const date = new Intl.DateTimeFormat(lang === 'fr' ? 'fr-FR' : 'en-GB', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  }).format(new Date(isoString));
+  return date;
+}
+
 export function getVolumeInGiB(displayedVolume, unit, csp) {
   if (unit === 'tb') {
     const volumeGB = displayedVolume * 1000;

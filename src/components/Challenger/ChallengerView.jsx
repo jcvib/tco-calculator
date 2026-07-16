@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ChallengerForm from './ChallengerForm'
 import ChallengerResult from './ChallengerResult'
 import ChallengerHeatmap from './ChallengerHeatmap'
@@ -7,7 +7,7 @@ import { generateNarrative } from '../../engine/narrativeGenerator'
 import { setDisplayCurrency } from '../../engine/currencyUtils'
 import { useLanguage } from '../../i18n/LanguageContext'
 
-export default function ChallengerView() {
+export default function ChallengerView({ initialContext }) {
   const [tab,      setTab]      = useState('calc')  // 'calc' | 'heatmap'
   const [params,   setParams]   = useState(null)
   const [allLevels, setAllLevels] = useState(null)
@@ -15,6 +15,18 @@ export default function ChallengerView() {
   const [currency, setCurrency] = useState('USD')
 
   const { t, lang } = useLanguage()
+
+  // Arrivée depuis la passerelle Heatmap → Challenger (bouton "Comparer aussi vs
+  // Megaport/Equinix") : revenir au formulaire pré-rempli plutôt qu'à un résultat
+  // ou un onglet potentiellement obsolètes d'un calcul précédent.
+  useEffect(() => {
+    if (initialContext) {
+      setTab('calc')
+      setParams(null)
+      setAllLevels(null)
+      setError(null)
+    }
+  }, [initialContext])
 
   // Narrative is derived from allLevels + lang + currency — recomputed on any change
   // (no need to store it in state separately)
@@ -88,7 +100,11 @@ export default function ChallengerView() {
       {tab === 'heatmap' ? (
         <ChallengerHeatmap />
       ) : !results ? (
-        <ChallengerForm onCalculate={handleCalculate} />
+        <ChallengerForm
+          key={initialContext ? `${initialContext.country}|${initialContext.bandwidthMbps}` : 'default'}
+          initialContext={initialContext}
+          onCalculate={handleCalculate}
+        />
       ) : (
         <ChallengerResult
           results={results}

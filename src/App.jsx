@@ -6,8 +6,11 @@ import CellDetailsFlat from './components/CellDetails/indexFlat';
 import ViewSelector from './components/ViewSelector';
 import ChallengerView from './components/Challenger/ChallengerView';
 import { TCV_BANDS, DURATIONS, getDiscountPercent } from './data/discountGrid';
-import { setDisplayCurrency, sortBandwidths } from './utils/formatters';
+import { OB_PRICING_PRIVATE, OB_PRICING_PUBLIC, OB_COUNTRIES, OB_PRICING_META } from './data/ob_pricing_jul2026.js';
+import { CHALLENGER_BANDWIDTHS } from './data/geoMappings';
+import { setDisplayCurrency, sortBandwidths, parseBandwidth } from './utils/formatters';
 import { useLanguage } from './i18n/LanguageContext';
+import { readUrlState, useSyncUrlState } from './hooks/useUrlState';
 
 // Fonction pour transformer les données au format attendu
 function transformPricingData(cloudData) {
@@ -66,32 +69,42 @@ function transformPricingData(cloudData) {
 
 export default function App() {
   const { t } = useLanguage();
-  const [viewMode, setViewMode] = useState('heatmap');
+
+  // Configuration initiale reprise de l'URL (lien partagé par un commercial) — lue une
+  // seule fois au montage, sert de valeur par défaut à chaque useState ci-dessous.
+  const [urlState] = useState(() => readUrlState());
+
+  const [viewMode, setViewMode] = useState(urlState.viewMode ?? 'heatmap');
+  // Contexte initial transmis au Mode Challenger lors du passage depuis la Heatmap
+  // (bouton "Comparer aussi vs Megaport/Equinix" dans le détail de cellule)
+  const [challengerInitialContext, setChallengerInitialContext] = useState(null);
   const [pricingData, setPricingData] = useState(null);
-  const [selectedCountry, setSelectedCountry] = useState('France');
-  const [selectedCSP, setSelectedCSP] = useState('AWS');
-  const [selectedRegion, setSelectedRegion] = useState('eu-west-3');
+  const [selectedCountry, setSelectedCountry] = useState(urlState.selectedCountry ?? 'France');
+  const [selectedCSP, setSelectedCSP] = useState(urlState.selectedCSP ?? 'AWS');
+  const [selectedRegion, setSelectedRegion] = useState(
+    urlState.selectedRegion ?? (urlState.selectedCSP === 'Azure' ? 'northeurope' : 'eu-west-3')
+  );
   const [selectedCell, setSelectedCell] = useState(null);
-  const [volumeUnit, setVolumeUnit] = useState('native');
+  const [volumeUnit, setVolumeUnit] = useState(urlState.volumeUnit ?? 'native');
   const [capacityThreshold, setCapacityThreshold] = useState(60);
 
   // Remise OB : grille TCV × durée (modèle EVP) + discount supplémentaire négocié
-  const [obTcvBand, setObTcvBand] = useState(TCV_BANDS[0].key);
-  const [obDuration, setObDuration] = useState(12);
-  const [obExtraDiscount, setObExtraDiscount] = useState(0);  // % libre, dérogation hors grille
+  const [obTcvBand, setObTcvBand] = useState(urlState.obTcvBand ?? TCV_BANDS[0].key);
+  const [obDuration, setObDuration] = useState(urlState.obDuration ?? 12);
+  const [obExtraDiscount, setObExtraDiscount] = useState(urlState.obExtraDiscount ?? 0);  // % libre, dérogation hors grille
 
   // Mode Cloud Connect : Private (DX/ExpressRoute) ou Public/IPsec (Evolution Platform)
-  const [ccMode, setCcMode] = useState('private');            // 'private' | 'public'
-  const [publicArchitecture, setPublicArchitecture] = useState('High Availability'); // 'Standard' | 'High Availability'
+  const [ccMode, setCcMode] = useState(urlState.ccMode ?? 'private');            // 'private' | 'public'
+  const [publicArchitecture, setPublicArchitecture] = useState(urlState.publicArchitecture ?? 'High Availability'); // 'Standard' | 'High Availability'
 
   // Devise d'affichage
-  const [displayCurrencyState, setDisplayCurrencyState] = useState('EUR'); // 'EUR' | 'USD'
+  const [displayCurrencyState, setDisplayCurrencyState] = useState(urlState.displayCurrency ?? 'EUR'); // 'EUR' | 'USD'
 
   // Coûts côté client (NAT GW + boîtier IPsec) — estimation optionnelle
-  const [includeClientCost, setIncludeClientCost] = useState(false);
+  const [includeClientCost, setIncludeClientCost] = useState(urlState.includeClientCost ?? false);
 
   // Volumes personnalisés
-  const [customVolumes, setCustomVolumes] = useState([]);
+  const [customVolumes, setCustomVolumes] = useState(urlState.customVolumes ?? []);
 
   // Calculer obDiscount total = grille TCV/durée + dérogation
   const obDiscount = useMemo(() => {
@@ -106,15 +119,15 @@ export default function App() {
   // Charger et transformer les données
   useEffect(() => {
     const loadPricingData = () => {
-      if (window.CLOUD_PRICING_DATA && window.CLOUD_PRICING_DATA.providers && window.OB_PRICING_PRIVATE) {
+      if (window.CLOUD_PRICING_DATA && window.CLOUD_PRICING_DATA.providers) {
         try {
           const transformed = transformPricingData(window.CLOUD_PRICING_DATA);
 
           setPricingData({
             ...transformed,
-            OB_PRICING_PRIVATE: window.OB_PRICING_PRIVATE,
-            OB_PRICING_PUBLIC: window.OB_PRICING_PUBLIC,
-            OB_COUNTRIES: window.OB_COUNTRIES || Object.keys(window.OB_PRICING_PRIVATE)
+            OB_PRICING_PRIVATE,
+            OB_PRICING_PUBLIC,
+            OB_COUNTRIES
           });
 
           console.log('✅ Données chargées et transformées avec succès');
@@ -129,6 +142,29 @@ export default function App() {
 
     loadPricingData();
   }, []);
+
+  // Valide le pays/la région repris de l'URL une fois les données chargées (au cas où le
+  // lien partagé référence un pays inconnu ou une région qui n'existe pas pour ce CSP).
+  useEffect(() => {
+    if (!pricingData) return;
+    if (!pricingData.OB_COUNTRIES.includes(selectedCountry)) {
+      setSelectedCountry('France');
+    }
+    const regions = selectedCSP === 'AWS' ? pricingData.AWS_EGRESS_REGIONS : pricingData.AZURE_EGRESS_REGIONS;
+    if (!regions[selectedRegion]) {
+      setSelectedRegion(selectedCSP === 'AWS' ? 'eu-west-3' : 'northeurope');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricingData, selectedCSP]);
+
+  // Configuration courante → URL, pour permettre le partage d'un lien direct.
+  useSyncUrlState({
+    viewMode, selectedCountry, selectedCSP, selectedRegion, ccMode, publicArchitecture,
+    displayCurrency: displayCurrencyState, obTcvBand, obDuration, obExtraDiscount,
+    volumeUnit, includeClientCost, customVolumes,
+    selectedCellBandwidth: selectedCell?.bandwidth,
+    selectedCellVolumeTiB: selectedCell?.volumeTiB,
+  });
 
   // Bandes passantes disponibles : pilotées par le port CSP (DX/ExpressRoute) en mode Private,
   // ou directement par le catalogue OB Public/IPsec en mode Public (pas de port CSP requis,
@@ -176,6 +212,16 @@ export default function App() {
     setSelectedCell(null);
   };
 
+  // Passerelle Heatmap → Mode Challenger : réutilise le pays, la bande passante (arrondie
+  // à la plus proche disponible côté Challenger) et le CSP déjà sélectionnés.
+  const handleCompareVsDiy = ({ country, bandwidth }) => {
+    const bandwidthMbps = CHALLENGER_BANDWIDTHS.find(b => b >= parseBandwidth(bandwidth))
+      ?? CHALLENGER_BANDWIDTHS[CHALLENGER_BANDWIDTHS.length - 1];
+    setChallengerInitialContext({ country, bandwidthMbps, csp: selectedCSP.toLowerCase() });
+    setSelectedCell(null);
+    setViewMode('challenger');
+  };
+
   const handleThresholdChange = (threshold) => {
     setCapacityThreshold(threshold);
     setSelectedCell(null);
@@ -184,11 +230,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-graphite-50 p-8">
       <div className="max-w-7xl mx-auto">
-        <Header selectedCSP={selectedCSP} />
+        <Header selectedCSP={selectedCSP} pricingGeneratedAt={OB_PRICING_META.generatedAt} />
 
         <ViewSelector viewMode={viewMode} setViewMode={setViewMode} />
 
-        {viewMode === 'challenger' && <ChallengerView />}
+        {viewMode === 'challenger' && <ChallengerView initialContext={challengerInitialContext} />}
 
         {viewMode === 'heatmap' && <>
         <Controls
@@ -250,6 +296,7 @@ export default function App() {
           obDiscount={obDiscount}
           customVolumes={customVolumes}
           setCustomVolumes={setCustomVolumes}
+          initialCellSelection={urlState.initialCellSelection}
         />
 
         <CellDetailsFlat
@@ -259,6 +306,7 @@ export default function App() {
           volumeUnit={volumeUnit}
           capacityThreshold={capacityThreshold}
           ccMode={ccMode}
+          onCompareVsDiy={handleCompareVsDiy}
         />
 
         <div className="mt-8 text-center text-graphite-400 text-sm">

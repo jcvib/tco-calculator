@@ -8,7 +8,12 @@
 // Prix en EUR, PAYG pur (plus de frais de réservation). monthly_cost_744h = hourly_rate_eur * 744h.
 // 15 pays disponibles.
 
-const OB_PRICING_PRIVATE = {
+export const OB_PRICING_META = {
+  "generatedAt": "2026-07-07T09:28:45.535Z",
+  "sourceFile": "ODCCpricingJul26.csv"
+};
+
+export const OB_PRICING_PRIVATE = {
   "Australia": {
     "5M": {
       "bandwidth_mbps": 5,
@@ -2741,7 +2746,7 @@ const OB_PRICING_PRIVATE = {
   }
 };
 
-const OB_PRICING_PUBLIC = {
+export const OB_PRICING_PUBLIC = {
   "Australia": {
     "High Availability": {
       "5M": {
@@ -7514,7 +7519,7 @@ const OB_PRICING_PUBLIC = {
   }
 };
 
-const OB_COUNTRIES = [
+export const OB_COUNTRIES = [
   "Australia",
   "Brazil",
   "Canada",
@@ -7531,9 +7536,3 @@ const OB_COUNTRIES = [
   "United Kingdom",
   "United States"
 ];
-
-if (typeof window !== 'undefined') {
-  window.OB_PRICING_PRIVATE = OB_PRICING_PRIVATE;
-  window.OB_PRICING_PUBLIC = OB_PRICING_PUBLIC;
-  window.OB_COUNTRIES = OB_COUNTRIES;
-}

@@ -3,9 +3,13 @@ import CostBreakdownFlat from './CostBreakdownFlat';
 import LinkAnalysisFlat from './LinkAnalysisFlat';
 import { useLanguage } from '../../i18n/LanguageContext';
 
-export default function CellDetailsFlat({ selectedCell, setSelectedCell, selectedCSP, volumeUnit, capacityThreshold }) {
+export default function CellDetailsFlat({ selectedCell, setSelectedCell, selectedCSP, volumeUnit, capacityThreshold, onCompareVsDiy }) {
   const { t } = useLanguage();
   if (!selectedCell) return null;
+
+  const handleCompareVsDiy = () => {
+    onCompareVsDiy({ country: selectedCell.obCountry, bandwidth: selectedCell.bandwidth });
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -40,11 +44,20 @@ export default function CellDetailsFlat({ selectedCell, setSelectedCell, selecte
                 selectedCell={selectedCell} 
                 selectedCSP={selectedCSP} 
               />
-              <LinkAnalysisFlat 
-                selectedCell={selectedCell} 
+              <LinkAnalysisFlat
+                selectedCell={selectedCell}
                 capacityThreshold={capacityThreshold}
               />
             </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-graphite-200 flex justify-end">
+            <button
+              onClick={handleCompareVsDiy}
+              className="px-4 py-2 text-sm font-medium bg-graphite-800 text-white rounded-lg hover:bg-graphite-900 transition-colors"
+            >
+              ⚔️ {t('cellDetails.compareVsDiy')}
+            </button>
           </div>
         </div>
       </div>
