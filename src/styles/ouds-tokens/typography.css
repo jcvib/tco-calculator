@@ -1,0 +1,20 @@
+:root{
+--ouds-font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif;
+--ouds-font-family-mono:ui-monospace,Consolas,Menlo,"Liberation Mono",monospace;
+--ouds-weight-default:400;--ouds-weight-moderate:500;--ouds-weight-strong:700;
+--ouds-display-large-size:72px;--ouds-display-large-lh:80px;--ouds-display-large-ls:-1.08px;
+--ouds-display-medium-size:56px;--ouds-display-medium-lh:64px;--ouds-display-medium-ls:-.7px;
+--ouds-display-small-size:48px;--ouds-display-small-lh:56px;--ouds-display-small-ls:-.6px;
+--ouds-heading-xlarge-size:40px;--ouds-heading-xlarge-lh:48px;--ouds-heading-xlarge-ls:-.4px;
+--ouds-heading-large-size:32px;--ouds-heading-large-lh:40px;--ouds-heading-large-ls:-.32px;
+--ouds-heading-medium-size:28px;--ouds-heading-medium-lh:36px;--ouds-heading-medium-ls:-.28px;
+--ouds-heading-small-size:24px;--ouds-heading-small-lh:32px;--ouds-heading-small-ls:-.12px;
+--ouds-body-large-size:18px;--ouds-body-large-lh:24px;--ouds-body-large-ls:.18px;
+--ouds-body-medium-size:16px;--ouds-body-medium-lh:24px;--ouds-body-medium-ls:.2px;
+--ouds-body-small-size:14px;--ouds-body-small-lh:20px;--ouds-body-small-ls:.17px;
+--ouds-label-xlarge-size:18px;--ouds-label-xlarge-lh:24px;--ouds-label-xlarge-ls:.18px;
+--ouds-label-large-size:16px;--ouds-label-large-lh:24px;--ouds-label-large-ls:.2px;
+--ouds-label-medium-size:14px;--ouds-label-medium-lh:20px;--ouds-label-medium-ls:.17px;
+--ouds-label-small-size:12px;--ouds-label-small-lh:16px;--ouds-label-small-ls:.18px;
+--ouds-code-medium-size:14px;--ouds-code-medium-lh:20px;
+}

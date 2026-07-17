@@ -99,6 +99,8 @@ tco-calculator/
 │   │   └── useUrlState.js          Synchronise la config Heatmap avec les query params de l'URL (lien partageable)
 │   ├── utils/                      # Calculs & formatage — Heatmap OB vs CSP
 │   │   ├── calculations.js, formatters.js, colors.js, currency.js
+│   ├── styles/
+│   │   └── ouds-tokens/             Vrais tokens CSS Orange Design System (couleurs, typo, spacing, radii, ombres)
 │   ├── i18n/
 │   │   ├── LanguageContext.jsx     Contexte React FR/EN + hook useLanguage()
 │   │   └── translations.js         Toutes les chaînes FR/EN (les deux vues)
@@ -180,6 +182,7 @@ Toutes les devises sources sont converties vers USD ou EUR selon le choix d'affi
 - [Setup AWS Amplify](docs/SETUP_AMPLIFY.md) — Déploiement CI/CD
 - [Guide développement](docs/DEVELOPMENT.md) — Architecture, moteur de calcul, i18n
 - [Plan d'implémentation](docs/IMPLEMENTATION_PLAN.md) — Spécification technique du Mode Challenger
+- [Roadmap prochaine session](docs/ROADMAP_NEXT_SESSION.md) — Source unique des priorités en cours (fix + refonte heatmap, fiabilisation du pipeline de pricing, backlog d'évolutions)
 
 ---
 
