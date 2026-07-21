@@ -51,7 +51,10 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
     <div className="space-y-4">
       {/* Egress Internet */}
       <div className="bg-graphite-50 border border-graphite-200 rounded-lg p-4">
-        <h3 className="text-sm font-medium text-graphite-800 mb-3">🌐 {t('costBreakdown.egressTitle', { csp: selectedCSP })}</h3>
+        <h3 className="text-sm font-medium text-graphite-800 mb-3 flex items-center gap-2">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-graphite-500 shrink-0"></span>
+          {t('costBreakdown.egressTitle', { csp: selectedCSP })}
+        </h3>
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -94,7 +97,8 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
       {/* Connectivité OB */}
       <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
         <h3 className="text-sm font-medium text-orange-900 mb-3 flex items-center gap-2">
-          🔒 {isPublic
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-orange-500 shrink-0"></span>
+          {isPublic
             ? t('costBreakdown.connectPublic', { architecture: obArchitecture === 'Standard' ? t('heatmap.architectureStandard') : 'HA' })
             : t('costBreakdown.connectPrivate')} (OB + {selectedCSP})
           {hasDiscount && <span className="text-xs bg-malachite-600 text-white px-2 py-0.5 rounded">{t('costBreakdown.discountBadge', { discount: obDiscount })}</span>}
@@ -103,7 +107,10 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
 
         {/* OB ODCC */}
         <div className="mb-3 pb-3 border-b border-orange-200">
-          <div className="text-xs font-medium text-orange-800 mb-2">🟠 {t('costBreakdown.odccTitle')}</div>
+          <div className="text-xs font-medium text-orange-800 mb-2 flex items-center gap-1.5">
+            <span className="inline-block w-2 h-2 rounded-full bg-orange-500 shrink-0"></span>
+            {t('costBreakdown.odccTitle')}
+          </div>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between text-xs">
               <span className="text-graphite-500">{isPublic ? t('costBreakdown.country') : t('costBreakdown.countryRouting')}</span>
@@ -150,8 +157,9 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
           <>
             {/* Egress Internet côté CSP (IPsec transite par Internet, pas de DX/ExpressRoute) */}
             <div className="mb-3 pb-3 border-b border-orange-200">
-              <div className="text-xs font-medium text-graphite-700 mb-2">
-                🌐 {t('costBreakdown.publicEgressTitle', { csp: selectedCSP })}
+              <div className="text-xs font-medium text-graphite-700 mb-2 flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-graphite-500 shrink-0"></span>
+                {t('costBreakdown.publicEgressTitle', { csp: selectedCSP })}
               </div>
               <div className="space-y-1 text-sm">
                 {cspEgressTiers.map((tier, idx) => (
@@ -170,7 +178,10 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
             {/* Coûts côté client (optionnels) */}
             {(natGwCost > 0 || ipsecCpeCost > 0) && (
               <div className="mb-3">
-                <div className="text-xs font-medium text-graphite-700 mb-2">🖥️ {t('costBreakdown.clientCostTitle')}</div>
+                <div className="text-xs font-medium text-graphite-700 mb-2 flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-graphite-200 shrink-0"></span>
+                  {t('costBreakdown.clientCostTitle')}
+                </div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between text-xs" title={t('costBreakdown.natGwHoverDetail', {
                     hourly: NAT_GW_HOURLY_USD, hours: NAT_GW_MONTHLY_HOURS,
@@ -192,8 +203,9 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
           <>
             {/* Port CSP */}
             <div className="mb-3 pb-3 border-b border-orange-200">
-              <div className="text-xs font-medium text-graphite-700 mb-2">
-                ☁️ {t('costBreakdown.portTitle', { connectType })}
+              <div className="text-xs font-medium text-graphite-700 mb-2 flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-graphite-400 shrink-0"></span>
+                {t('costBreakdown.portTitle', { connectType })}
               </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-xs">
@@ -224,7 +236,10 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
             {/* ErGw Azure */}
             {selectedCSP === 'Azure' && erGwCost > 0 && (
               <div className="mb-3 pb-3 border-b border-orange-200">
-                <div className="text-xs font-medium text-purple-800 mb-2">🟪 {t('costBreakdown.ergwTitle')}</div>
+                <div className="text-xs font-medium text-purple-800 mb-2 flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-purple-400 shrink-0"></span>
+                  {t('costBreakdown.ergwTitle')}
+                </div>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between text-xs">
                     <span className="text-graphite-500">{t('costBreakdown.scaleUnits')}</span>
@@ -244,7 +259,10 @@ export default function CostBreakdownFlat({ selectedCell, selectedCSP }) {
 
             {/* Private Egress */}
             <div className="mb-3">
-              <div className="text-xs font-medium text-graphite-700 mb-2">⬛ {t('costBreakdown.privateEgressTitle', { connectType })}</div>
+              <div className="text-xs font-medium text-graphite-700 mb-2 flex items-center gap-1.5">
+                <span className="inline-block w-2 h-2 rounded-full bg-graphite-300 shrink-0"></span>
+                {t('costBreakdown.privateEgressTitle', { connectType })}
+              </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-xs">
                   <span className="text-graphite-500">{t('costBreakdown.volume')}</span>

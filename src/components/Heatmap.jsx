@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { getCellColor, getTextColor } from '../utils/colors';
+import { getCellColor, getTextColor, winnerMagnitude, getWinner, ORANGE_STOPS, GRAY_STOPS } from '../utils/colors';
 import { getVolumeLabel, parseBandwidth, formatCurrency } from '../utils/formatters';
 import { calculateEgressCost, calculatePrivateCost, calculatePublicIPsecCost, calculateNatGwCost, calculateLinkLoad, findPrivatePublicCrossover } from '../utils/calculations';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -60,6 +60,7 @@ export default function Heatmap({
   const VOLUMES_TIB = useMemo(() => {
     return [...new Set([...BASE_VOLUMES_TIB, ...customVolumes])].sort((a, b) => a - b);
   }, [customVolumes]);
+  const volumeMaxTiB = VOLUMES_TIB[VOLUMES_TIB.length - 1];
 
   // Headers dérivés de VOLUMES_TIB — même deps
   const volumeHeaders = useMemo(() => {
@@ -152,6 +153,11 @@ export default function Heatmap({
         // savings = egress Internet CSP direct vs OB (avec remise)
         const savings = egressCostData.total - privateCost.total;
         const savingsPercent = egressCostData.total > 0 ? (savings / egressCostData.total) * 100 : 0;
+        // magnitude : toujours borné 0-100, contrairement à savingsPercent qui explose
+        // côté CSP gagnant (le dénominateur bascule alors sur le coût du perdant) — voir
+        // utils/colors.js. winner = qui gagne la case ('OB' ou 'CSP').
+        const winner = getWinner(savingsPercent);
+        const magnitude = winnerMagnitude(savingsPercent, egressCostData.total, privateCost.total);
 
         row.cells[volumeDisplay] = {
           volumeTiB,
@@ -161,6 +167,8 @@ export default function Heatmap({
           privateCost,
           savings,
           savingsPercent,
+          winner,
+          magnitude,
           linkLoad
         };
       }
@@ -193,6 +201,23 @@ export default function Heatmap({
     obDiscount,
     VOLUMES_TIB
   ]);
+
+  // Bandeau de synthèse : taux de gain OB sur toutes les cases actuellement affichées
+  // (recalculé à chaque changement de filtre puisque dérivé de heatmapData/volumeHeaders).
+  const summary = useMemo(() => {
+    let wins = 0;
+    let total = 0;
+    for (const row of heatmapData) {
+      for (const vol of volumeHeaders) {
+        const cell = row.cells[vol];
+        if (!cell) continue;
+        total++;
+        if (cell.winner === 'OB') wins++;
+      }
+    }
+    const losses = total - wins;
+    return { wins, losses, total, winRate: total > 0 ? Math.round((wins / total) * 100) : 0 };
+  }, [heatmapData, volumeHeaders]);
 
   // Construit le payload transmis au panneau de détail (CellDetailsFlat) — extrait pour être
   // réutilisé à la fois par le clic manuel sur une cellule et par la réouverture automatique
@@ -265,6 +290,8 @@ export default function Heatmap({
       // Économies
       savingsAmount: cell.savings,
       savingsPercent: cell.savingsPercent,
+      magnitude: cell.magnitude,
+      winner: cell.winner,
 
       // Link Load
       linkLoadPercent: cell.linkLoad?.loadPercent || 0,
@@ -299,36 +326,48 @@ export default function Heatmap({
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-start justify-between gap-6 mb-4 flex-wrap">
-        <div>
-          <h2 className="text-xl font-semibold text-graphite-900">
-            {t('heatmap.title')}
-          </h2>
-          <p className="text-sm text-graphite-500 mt-0.5">
-            {t('heatmap.subtitle', {
-              mode: ccMode === 'public'
-                ? t('heatmap.modePublic', { architecture: publicArchitecture === 'Standard' ? t('heatmap.architectureStandard') : t('heatmap.architectureHa') })
-                : t('heatmap.modePrivate'),
-              csp: selectedCSP
-            })}
-          </p>
-        </div>
+      <div className="mb-4">
+        <h2 className="text-xl font-semibold text-graphite-900">
+          {t('heatmap.title')}
+        </h2>
+        <p className="text-sm text-graphite-500 mt-0.5">
+          {t('heatmap.subtitle', {
+            mode: ccMode === 'public'
+              ? t('heatmap.modePublic', { architecture: publicArchitecture === 'Standard' ? t('heatmap.architectureStandard') : t('heatmap.architectureHa') })
+              : t('heatmap.modePrivate'),
+            csp: selectedCSP
+          })}
+        </p>
+      </div>
 
-        {/* Légende : sens de lecture + échelle de couleur */}
-        <div className="text-xs text-graphite-500 shrink-0">
-          <div className="flex items-center gap-2 mb-1.5 justify-end">
-            <span className="font-medium text-graphite-600">{t('heatmap.legendMoreExpensive')}</span>
-            <div className="flex h-2.5 w-40 rounded-full overflow-hidden border border-graphite-200">
-              <div className="flex-1" style={{ backgroundColor: '#8B8F99' }}></div>
-              <div className="flex-1" style={{ backgroundColor: '#DBDDE2' }}></div>
-              <div className="flex-1" style={{ backgroundColor: '#F7F8F9' }}></div>
-              <div className="flex-1" style={{ backgroundColor: '#FFCB85' }}></div>
-              <div className="flex-1" style={{ backgroundColor: '#9C4700' }}></div>
-            </div>
-            <span className="font-medium text-graphite-600">{t('heatmap.legendLessExpensive')}</span>
-          </div>
-          <p className="text-right">{t('heatmap.legendCaption', { csp: selectedCSP })}</p>
+      {/* Bandeau de synthèse : taux de gain OB sur les cases actuellement affichées */}
+      <div
+        className="flex items-center gap-4 rounded-lg p-4 mb-4 flex-wrap"
+        style={{ backgroundColor: 'var(--ouds-orange-50)' }}
+      >
+        <div className="text-4xl font-bold shrink-0" style={{ color: 'var(--ouds-orange-600)' }}>
+          {summary.winRate}%
         </div>
+        <div className="text-sm text-graphite-700">
+          <div className="font-medium">{t('heatmap.winRateHeadline', { csp: selectedCSP })}</div>
+          <div className="text-graphite-500 mt-0.5">
+            {t('heatmap.winRateDetail', { wins: summary.wins, losses: summary.losses, total: summary.total })}
+          </div>
+        </div>
+      </div>
+
+      {/* Légende permanente : sens de lecture + échelle de couleur, 9 paliers */}
+      <div className="flex items-center gap-2 mb-3 text-xs">
+        <span className="font-medium text-graphite-600 shrink-0">{t('heatmap.legendMoreExpensive')}</span>
+        <div className="flex h-2.5 flex-1 max-w-md rounded-full overflow-hidden border border-graphite-200">
+          {[...GRAY_STOPS].reverse().map((c, i) => (
+            <div key={`g${i}`} className="flex-1" style={{ backgroundColor: c }}></div>
+          ))}
+          {ORANGE_STOPS.slice(1).map((c, i) => (
+            <div key={`o${i}`} className="flex-1" style={{ backgroundColor: c }}></div>
+          ))}
+        </div>
+        <span className="font-medium text-graphite-600 shrink-0">{t('heatmap.legendLessExpensive')}</span>
       </div>
 
       <div className="flex text-xs font-medium text-graphite-400 mb-1 pl-[100px]">
@@ -382,28 +421,45 @@ export default function Heatmap({
             <tr key={row.bandwidth}>
               <td className="bandwidth-cell">
                 {row.bandwidth}
-                {row.crossover?.crossoverVolumeTiB != null && (
-                  <div
-                    className="text-[10px] font-normal text-graphite-400 mt-0.5"
-                    title={t('heatmap.crossoverTooltip', {
-                      volume: row.crossover.crossoverVolumeTiB.toFixed(1),
-                      winnerBelow: winnerLabelFull(row.crossover.winnerBelow),
-                      winnerAbove: winnerLabelFull(row.crossover.winnerAbove)
-                    })}
-                  >
-                    {t('heatmap.crossoverBadge', { volume: row.crossover.crossoverVolumeTiB.toFixed(1) })}
-                  </div>
-                )}
+                {row.crossover?.crossoverVolumeTiB != null && (() => {
+                  const fraction = Math.min(row.crossover.crossoverVolumeTiB / volumeMaxTiB, 1);
+                  const belowColor = row.crossover.winnerBelow === 'public' ? 'var(--ouds-sky-500)' : 'var(--ouds-amber-500)';
+                  const aboveColor = row.crossover.winnerAbove === 'public' ? 'var(--ouds-sky-500)' : 'var(--ouds-amber-500)';
+                  return (
+                    <div
+                      className="flex items-center gap-1 mt-0.5"
+                      title={t('heatmap.crossoverTooltip', {
+                        volume: row.crossover.crossoverVolumeTiB.toFixed(1),
+                        winnerBelow: winnerLabelFull(row.crossover.winnerBelow),
+                        winnerAbove: winnerLabelFull(row.crossover.winnerAbove)
+                      })}
+                    >
+                      <div className="flex h-1.5 rounded-full overflow-hidden" style={{ width: '40px' }}>
+                        <div style={{ width: `${fraction * 100}%`, backgroundColor: belowColor }}></div>
+                        <div style={{ width: `${(1 - fraction) * 100}%`, backgroundColor: aboveColor }}></div>
+                      </div>
+                      <span className="text-[10px] font-normal text-graphite-400">
+                        {t('heatmap.crossoverVolumeLabel', { volume: row.crossover.crossoverVolumeTiB.toFixed(1) })}
+                      </span>
+                    </div>
+                  );
+                })()}
                 {row.crossover?.reason === 'no-crossover' && (
                   <div
-                    className="text-[10px] font-normal text-graphite-400 mt-0.5"
+                    className="flex items-center gap-1 mt-0.5"
                     title={t('heatmap.crossoverConstantTooltip', {
                       winner: winnerLabelFull(row.crossover.constantWinner)
                     })}
                   >
-                    {t('heatmap.crossoverConstantBadge', {
-                      winner: winnerLabelShort(row.crossover.constantWinner)
-                    })}
+                    <span
+                      className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: row.crossover.constantWinner === 'public' ? 'var(--ouds-sky-500)' : 'var(--ouds-amber-500)' }}
+                    ></span>
+                    <span className="text-[10px] font-normal text-graphite-400">
+                      {t('heatmap.crossoverConstantBadge', {
+                        winner: winnerLabelShort(row.crossover.constantWinner)
+                      })}
+                    </span>
                   </div>
                 )}
               </td>
@@ -423,8 +479,10 @@ export default function Heatmap({
                 }
 
                 const isOverThreshold = cell.linkLoad.isOverThreshold;
-                const bgColor = getCellColor(cell.savingsPercent);
-                const textColor = getTextColor(cell.savingsPercent);
+                const bgColor = getCellColor(cell.magnitude, cell.winner);
+                const textColor = getTextColor(cell.magnitude);
+                const badgeLabel = cell.winner === 'OB' ? 'OB' : selectedCSP;
+                const badgeBg = cell.winner === 'OB' ? 'var(--ouds-orange-500)' : 'var(--ouds-warm-gray-700)';
 
                 return (
                   <td
@@ -438,8 +496,11 @@ export default function Heatmap({
                     onClick={() => setSelectedCell(buildCellPayload(row, vol, cell))}
                     title={`${t('heatmap.clickForDetails', { load: cell.linkLoad.loadPercent.toFixed(0) })}${ccMode === 'public' && !cell.privateCost?.available ? t('heatmap.notAvailableSuffix') : ''}`}
                   >
-                    <div className="text-lg font-bold">
-                      {cell.savingsPercent > 0 ? '+' : ''}{cell.savingsPercent.toFixed(0)}%
+                    <div
+                      className="inline-block text-xs font-bold px-1.5 py-0.5 rounded"
+                      style={{ backgroundColor: badgeBg, color: '#ffffff' }}
+                    >
+                      {badgeLabel} −{Math.round(cell.magnitude)}%
                     </div>
                     <div className="text-xs mt-1">
                       {formatCurrency(Math.abs(cell.savings))}
