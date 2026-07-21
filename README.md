@@ -182,11 +182,16 @@ Toutes les devises sources sont converties vers USD ou EUR selon le choix d'affi
 - [Setup AWS Amplify](docs/SETUP_AMPLIFY.md) — Déploiement CI/CD
 - [Guide développement](docs/DEVELOPMENT.md) — Architecture, moteur de calcul, i18n
 - [Plan d'implémentation](docs/IMPLEMENTATION_PLAN.md) — Spécification technique du Mode Challenger
-- [Roadmap prochaine session](docs/ROADMAP_NEXT_SESSION.md) — Source unique des priorités en cours (fix + refonte heatmap, fiabilisation du pipeline de pricing, backlog d'évolutions)
+- [Roadmap prochaine session](docs/ROADMAP_NEXT_SESSION.md) — Source unique des priorités en cours (fix + refonte heatmap et CI/tests livrés en v6.4 ; reste : fiabilisation du pipeline de pricing, backlog d'évolutions)
 
 ---
 
 ## 📝 Changelog
+
+### v6.4 (2026-07-21)
+- 🐛 **Fix heatmap OB vs CSP** : le % affiché n'était pas borné côté CSP gagnant (le dénominateur restait le coût egress CSP même quand OB perdait largement), produisant des valeurs aberrantes (ex. -11642% à 10G/512GiB). Le nouveau calcul bascule le dénominateur sur le coût du perdant, bornant l'affichage 0-100% des deux côtés
+- ✨ **Refonte visuelle de la heatmap** : badges texte nommant le gagnant (`OB −X%` / `AWS −X%`), palette symétrique sur les vrais tokens du Design System Orange (OUDS, vendorés dans `src/styles/ouds-tokens/`), bandeau de synthèse (taux de gain OB), légende permanente à 9 paliers, indicateur de bascule Private/Public toujours visible (au lieu du survol), panneau de détail avec bandeau de statut et puces colorées à la place des émojis
+- ✅ **CI + tests unitaires** : GitHub Actions (build → test → lint) et 39 tests vitest sur les fonctions pures de calcul (`utils/calculations.js`, `utils/colors.js`, `engine/pricingEngine.js`, `engine/currencyUtils.js`) — le repo n'avait jusqu'ici aucune vérification automatisée
 
 ### v6.3 (2026-07-16)
 - 🔄 **Pipeline de pricing Cloud Connect unifié** : la Heatmap OB vs CSP et le Mode Challenger partagent désormais une seule source (`src/data/ob_pricing_jul2026.js`, EUR natif, PAYG) — le Challenger tournait jusqu'ici sur des tarifs de mars 2026 obsolètes et une dimension géographique (Local/Regional/Inter-Regional) qui n'existe plus dans le modèle de pricing actuel du produit Cloud Connect (elle subsiste côté Network Connect, un produit différent)

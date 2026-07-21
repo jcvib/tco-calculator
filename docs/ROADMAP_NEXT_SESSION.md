@@ -2,9 +2,11 @@
 
 Source unique pour la prochaine session de développement, consolidée le 2026-07-17 à l'issue de la session v6.3 (pipeline de pricing Cloud Connect unifié, détecteur de bascule Private/Public, passerelle Heatmap ↔ Challenger, URL partageable — voir le changelog du [README](../README.md)). Regroupe trois discussions distinctes de la même session : la refonte visuelle de la heatmap (synthèse + prototype de Jean-Charles), la fiabilisation du pipeline de pricing (Lambda orchestrateur), et un backlog d'évolutions plus larges brainstormées en fin de session. Ordre = priorité.
 
+**Mise à jour 2026-07-21** : le chantier 1 (fix + refonte heatmap) et le point 3.1 du backlog (CI + tests unitaires) ont été livrés cette session — voir le changelog v6.4 du [README](../README.md) et les commits `343c087` / `5cc3e96`. Reste à traiter : le chantier 2 (pipeline pricing, en attente des fichiers à jour de Jean-Charles) et le reste du backlog (3.2 à 3.5).
+
 ---
 
-## 1 — Heatmap OB vs CSP : fix du bug + refonte visuelle
+## 1 — Heatmap OB vs CSP : fix du bug + refonte visuelle ✅ Livré (session du 2026-07-21)
 
 Spécification issue d'une synthèse de Jean-Charles et d'un prototype interactif (`Heatmap Redesign.dc.html`, option **2a — Combo badges + palette contrastée**), fournis via un lien claude.ai/design (non accessible depuis cet environnement) puis via l'export `Benchmarking Evolution Platform-handoff.zip` (contenu extrait et intégré au repo cette session).
 
@@ -169,11 +171,13 @@ Trigger (manuel ou EventBridge cron mensuel)
 
 Brainstorm de fin de session, pas encore priorisé finement — à challenger au cas par cas. Regroupé par thème.
 
-### 3.1 — Fiabilité (recommandation la plus haute priorité du backlog)
+### 3.1 — Fiabilité (recommandation la plus haute priorité du backlog) ✅ Livré (session du 2026-07-21)
 
 Aucune vérification automatisée du repo aujourd'hui (pas de CI, pas de tests) — pour un outil qui manipule de vrais montants commerciaux (voir le bug de conversion EUR/USD trouvé et corrigé en v6.3), c'est le risque le plus sérieux du projet.
 - CI GitHub Actions basique (`npm run build` + lint) — attraperait les erreurs d'import/syntaxe avant `main`
 - Tests unitaires ciblés sur les fonctions pures : `src/utils/calculations.js`, `src/engine/pricingEngine.js`, `src/engine/currencyUtils.js`
+
+**Livré** : [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (`npm ci` → build → test → lint), 39 tests vitest sur les 4 fichiers de fonctions pures ci-dessus (dont `utils/colors.js`, ajouté pour couvrir en non-régression le fix du §1.1), ESLint flat config. Lint : 0 erreur, 4 warnings résiduels non bloquants (`react-hooks/exhaustive-deps` ×2 dans `Heatmap.jsx`, `volumeUnit` non utilisé dans `indexFlat.jsx`, `react-refresh/only-export-components` dans `LanguageContext.jsx`) — laissés tels quels, à trier une prochaine fois si besoin.
 
 ### 3.2 — Données de pricing
 
