@@ -1,8 +1,8 @@
 import { OB_PRICING_PRIVATE } from '../data/ob_pricing_jul2026.js'
 import { VNE_PRICING }        from '../data/vne_pricing_mar2026.js'
 import { VPNAAS_PRICING }     from '../data/vpnaas_pricing_mar2026.js'
-import { MEGAPORT_PRICING }   from '../data/megaport_pricing_mar2026.js'
-import { EQUINIX_PRICING }    from '../data/equinix_pricing_mar2026.js'
+import { MEGAPORT_PRICING }   from '../data/megaport_pricing_jul2026.js'
+import { EQUINIX_PRICING }    from '../data/equinix_pricing_jul2026.js'
 import {
   COUNTRY_TO_MEGAPORT, COUNTRY_TO_EQUINIX_METRO, DEFAULT_VNE_CONFIG
 } from '../data/geoMappings.js'

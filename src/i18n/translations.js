@@ -17,7 +17,12 @@ export const TRANSLATIONS = {
       tagline: 'Orange Business · v6.3',
       methodologyLabel: 'Méthodologie',
       methodologyText: 'Comparaison des coûts mensuels entre la connectivité Orange Business (Cloud Connect + {csp}) et l\'egress Internet standard.',
-      pricingFreshness: 'Pricing Cloud Connect à jour au {date}',
+      freshness: {
+        ob: 'Cloud Connect à jour au {date}',
+        cloud: 'AWS/Azure à jour au {date}',
+        megaport: 'Megaport à jour au {date}',
+        equinix: 'Equinix à jour au {date}',
+      },
     },
     viewSelector: {
       heatmap: 'Heatmap',
@@ -293,7 +298,12 @@ export const TRANSLATIONS = {
       tagline: 'Orange Business · v6.3',
       methodologyLabel: 'Methodology',
       methodologyText: 'Comparison of monthly costs between Orange Business connectivity (Cloud Connect + {csp}) and standard Internet egress.',
-      pricingFreshness: 'Cloud Connect pricing as of {date}',
+      freshness: {
+        ob: 'Cloud Connect as of {date}',
+        cloud: 'AWS/Azure as of {date}',
+        megaport: 'Megaport as of {date}',
+        equinix: 'Equinix as of {date}',
+      },
     },
     viewSelector: {
       heatmap: 'Heatmap',

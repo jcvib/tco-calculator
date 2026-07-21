@@ -7,6 +7,8 @@ import ViewSelector from './components/ViewSelector';
 import ChallengerView from './components/Challenger/ChallengerView';
 import { TCV_BANDS, DURATIONS, getDiscountPercent } from './data/discountGrid';
 import { OB_PRICING_PRIVATE, OB_PRICING_PUBLIC, OB_COUNTRIES, OB_PRICING_META } from './data/ob_pricing_jul2026.js';
+import { MEGAPORT_PRICING } from './data/megaport_pricing_jul2026.js';
+import { EQUINIX_PRICING } from './data/equinix_pricing_jul2026.js';
 import { CHALLENGER_BANDWIDTHS } from './data/geoMappings';
 import { setDisplayCurrency, sortBandwidths, parseBandwidth } from './utils/formatters';
 import { useLanguage } from './i18n/LanguageContext';
@@ -127,7 +129,8 @@ export default function App() {
             ...transformed,
             OB_PRICING_PRIVATE,
             OB_PRICING_PUBLIC,
-            OB_COUNTRIES
+            OB_COUNTRIES,
+            CLOUD_GENERATED_AT: window.CLOUD_PRICING_DATA.metadata?.generated_at ?? null
           });
 
           console.log('✅ Données chargées et transformées avec succès');
@@ -230,7 +233,16 @@ export default function App() {
   return (
     <div className="min-h-screen bg-graphite-50 p-8">
       <div className="max-w-7xl mx-auto">
-        <Header selectedCSP={selectedCSP} pricingGeneratedAt={OB_PRICING_META.generatedAt} />
+        <Header
+          selectedCSP={selectedCSP}
+          viewMode={viewMode}
+          freshness={{
+            ob: OB_PRICING_META.generatedAt,
+            cloud: pricingData?.CLOUD_GENERATED_AT,
+            megaport: MEGAPORT_PRICING.metadata?.generated_at,
+            equinix: EQUINIX_PRICING.timestamp
+          }}
+        />
 
         <ViewSelector viewMode={viewMode} setViewMode={setViewMode} />
 

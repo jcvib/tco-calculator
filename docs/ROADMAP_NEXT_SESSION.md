@@ -139,6 +139,8 @@ Le prototype illustre aussi le calcul du panneau de détail (répartition OB/Por
 
 ## 2 — Fiabilisation du pipeline de pricing (AWS/Azure/Megaport/Equinix)
 
+**Mise à jour 2026-07-21 (partielle)** : les 4 sources ont été rafraîchies manuellement cette session à partir d'exports fournis par Jean-Charles (Lambdas déjà exécutées le jour même) — voir changelog v6.5 du [README](../README.md). Ça ne remplace pas le pipeline/orchestrateur décrit ci-dessous (toujours entièrement à faire, côté AWS), mais ça valide un point utile pour sa conception : le schéma JSON des 4 sources est resté strictement stable entre les fetches (jan/mar/avr 2026 → juil 2026), donc le `Transform` de l'orchestrateur n'aurait pas eu besoin d'évoluer sur cette période — au passage, la comparaison manuelle avant/après a aussi montré ce qu'une vraie étape de `Validation` automatisée devrait attraper : un écart de prix Equinix de -60% sur une zone (Singapour↔Sydney, confirmé cohérent — repricing concurrentiel face à Megaport) et un changement de catalogue Equinix (SKU `network_edge` disparus à Amsterdam, nouveaux à Washington DC) qu'il aurait fallu remonter avant merge plutôt que découvrir a posteriori.
+
 **Constat de Jean-Charles** : 4 fonctions AWS Lambda existent déjà et récupèrent le pricing AWS, Azure, Megaport et Equinix. L'intégration dans l'app se fait aujourd'hui par "pseudo-insertions manuelles" à chaque montée de version — pas de pipeline, pas de garde-fou automatique. C'est le pendant infra de l'unification déjà faite côté OB Cloud Connect cette session (source unique + métadonnée de fraîcheur) : les 4 autres sources de données restent sur ce mode manuel.
 
 **Décision de cadrage** : pas de Step Functions complet — jugé disproportionné/trop rigide pour la situation actuelle ("trop chaotique" pour un mode pipeline entièrement automatisé selon Jean-Charles). Approche retenue : un **Lambda chef d'orchestre** qui appelle les 4 sources en parallèle (`Promise.all` ou équivalent), plus simple à opérer et à faire évoluer qu'une définition Step Functions dès le départ.
@@ -181,8 +183,8 @@ Aucune vérification automatisée du repo aujourd'hui (pas de CI, pas de tests) 
 
 ### 3.2 — Données de pricing
 
-- **Fraîcheur généralisée** : `OB_PRICING_META` (ajouté en v6.3) ne couvre que le Cloud Connect. VNE, VPNaaS, Megaport, Equinix trainent chacun une date différente sans que ce soit visible — même mécanisme partout donnerait une vraie transparence multi-source, surtout côté Challenger qui mélange plusieurs vintages silencieusement.
-- **Validation de complétude automatisée** : le script de conversion pourrait signaler automatiquement les trous (bande passante/pays manquants) au lieu de les découvrir à l'usage (pattern déjà exercé manuellement cette session, à scripter).
+- **Fraîcheur généralisée** ✅ Livré (session du 2026-07-21) : le header affiche désormais la date de chaque source active (Cloud Connect + AWS/Azure en Heatmap ; Cloud Connect + Megaport + Equinix en Challenger), filtrée selon le mode — voir `Header.jsx` (`FRESHNESS_SOURCES_BY_VIEW`). VNE et VPNaaS restent non couverts (pas de métadonnée de date dans leurs fichiers sources actuels).
+- **Validation de complétude automatisée** : toujours à scripter. Le constat manuel fait cette session (§2 ci-dessus) — écart de prix Equinix, catalogue `network_edge` changé — montre concrètement ce qu'un script de validation devrait détecter automatiquement avant merge plutôt qu'être découvert a posteriori.
 
 ### 3.3 — Heatmap OB vs CSP (au-delà de la refonte de la partie 1)
 

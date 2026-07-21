@@ -188,6 +188,11 @@ Toutes les devises sources sont converties vers USD ou EUR selon le choix d'affi
 
 ## 📝 Changelog
 
+### v6.5 (2026-07-21)
+- 🔄 **Rafraîchissement des données de pricing AWS/Azure/Megaport/Equinix** (juillet 2026, exports fournis par les 4 Lambdas existantes) : `public/pricing_data_jul2026.js`, `src/data/megaport_pricing_jul2026.js`, `src/data/equinix_pricing_jul2026.js`. Schémas strictement identiques aux exports précédents (mars/avril 2026 et janvier 2026) — aucune adaptation du code de transformation nécessaire. Bonne surprise au passage : le nouvel export AWS corrige un bug de double-encodage UTF-8 sur "São Paulo" présent en prod depuis janvier
+- ✨ **Fraîcheur des données généralisée** : le header affiche désormais la date de mise à jour de chaque source active (Cloud Connect + AWS/Azure en mode Heatmap ; Cloud Connect + Megaport + Equinix en mode Challenger), au lieu du seul Cloud Connect OB depuis v6.3
+- ℹ️ Écart de prix Equinix notable identifié sur la zone Singapour↔Sydney et Sydney (-59 à -61% vs avril 2026) — confirmé cohérent (repricing concurrentiel face à Megaport, bien implanté en APAC), documenté dans `src/data/equinix_pricing_jul2026.js`
+
 ### v6.4 (2026-07-21)
 - 🐛 **Fix heatmap OB vs CSP** : le % affiché n'était pas borné côté CSP gagnant (le dénominateur restait le coût egress CSP même quand OB perdait largement), produisant des valeurs aberrantes (ex. -11642% à 10G/512GiB). Le nouveau calcul bascule le dénominateur sur le coût du perdant, bornant l'affichage 0-100% des deux côtés
 - ✨ **Refonte visuelle de la heatmap** : badges texte nommant le gagnant (`OB −X%` / `AWS −X%`), palette symétrique sur les vrais tokens du Design System Orange (OUDS, vendorés dans `src/styles/ouds-tokens/`), bandeau de synthèse (taux de gain OB), légende permanente à 9 paliers, indicateur de bascule Private/Public toujours visible (au lieu du survol), panneau de détail avec bandeau de statut et puces colorées à la place des émojis

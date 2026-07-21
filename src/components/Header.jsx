@@ -1,8 +1,19 @@
 import { useLanguage } from '../i18n/LanguageContext';
 import { formatDate } from '../utils/formatters';
 
-export default function Header({ selectedCSP, pricingGeneratedAt }) {
+// Sources affichées selon le mode actif : la Heatmap consomme OB + AWS/Azure,
+// le Mode Challenger consomme OB + Megaport/Equinix (pas les tarifs bruts AWS/Azure).
+const FRESHNESS_SOURCES_BY_VIEW = {
+  heatmap: ['ob', 'cloud'],
+  challenger: ['ob', 'megaport', 'equinix']
+};
+
+export default function Header({ selectedCSP, viewMode, freshness = {} }) {
   const { lang, setLang, t } = useLanguage();
+
+  const freshnessEntries = (FRESHNESS_SOURCES_BY_VIEW[viewMode] ?? [])
+    .filter(source => freshness[source])
+    .map(source => t(`header.freshness.${source}`, { date: formatDate(freshness[source], lang) }));
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -16,9 +27,9 @@ export default function Header({ selectedCSP, pricingGeneratedAt }) {
             <p className="text-graphite-500 text-sm">
               {t('header.tagline')}
             </p>
-            {pricingGeneratedAt && (
+            {freshnessEntries.length > 0 && (
               <p className="text-graphite-400 text-xs mt-0.5">
-                {t('header.pricingFreshness', { date: formatDate(pricingGeneratedAt, lang) })}
+                {freshnessEntries.join(' · ')}
               </p>
             )}
           </div>
