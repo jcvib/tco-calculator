@@ -52,7 +52,7 @@ function safeEval(expr, { n_csps, m_dcs }) {
     .replace(/m_dcs/g, String(m_dcs))
 
   // N'autoriser que les caractères sûrs
-  if (!/^[\d\s\+\-\*\/\(\)]+$/.test(substituted)) {
+  if (!/^[\d\s+\-*/()]+$/.test(substituted)) {
     throw new Error(`Expression non autorisée : ${expr}`)
   }
 

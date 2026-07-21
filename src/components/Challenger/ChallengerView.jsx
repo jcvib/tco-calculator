@@ -53,7 +53,7 @@ export default function ChallengerView({ initialContext }) {
   function handleCurrencyChange(cur) {
     setDisplayCurrency(cur)
     setCurrency(cur)
-    if (params) { try { runCompute(params) } catch (e) {} }
+    if (params) { try { runCompute(params) } catch { /* déjà géré par le catch de handleCompute au premier calcul */ } }
   }
 
   function handleReset() {
